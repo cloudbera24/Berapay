@@ -8,40 +8,21 @@ const path = require('path');
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
-const winston = require('winston');
 const { User, Transaction, Session } = require('./models');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Logger setup
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.errors({ stack: true }),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.File({ filename: 'logs/errors.log', level: 'error' }),
-    new winston.transports.File({ filename: 'logs/combined.log' })
-  ]
-});
-
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.simple()
-  }));
-}
-
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+}));
 app.use(compression());
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100
 });
 app.use(limiter);
 
@@ -50,12 +31,19 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => logger.info('✅ MongoDB connected successfully'))
-.catch(err => logger.error('❌ MongoDB connection error:', err));
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log('✅ MongoDB connected successfully');
+  } catch (error) {
+    console.error('❌ MongoDB connection error:', error);
+    setTimeout(connectDB, 5000);
+  }
+};
+connectDB();
 
 // Utility functions
 function generateRef() {
@@ -88,13 +76,17 @@ async function initiateSTKPush(phone, amount, reference) {
       headers: {
         'Authorization': process.env.AUTH_TOKEN,
         'Content-Type': 'application/json'
-      }
+      },
+      timeout: 30000
     });
 
     return { success: true, data: response.data };
   } catch (error) {
-    logger.error('STK Push Error:', error.response?.data || error.message);
-    return { success: false, error: error.response?.data || error.message };
+    console.error('STK Push Error:', error.response?.data || error.message);
+    return { 
+      success: false, 
+      error: error.response?.data?.message || error.message 
+    };
   }
 }
 
@@ -110,20 +102,33 @@ async function disburseFunds(phone, amount, reference) {
       headers: {
         'Authorization': process.env.AUTH_TOKEN,
         'Content-Type': 'application/json'
-      }
+      },
+      timeout: 30000
     });
 
     return { success: true, data: response.data };
   } catch (error) {
-    logger.error('Disbursement Error:', error.response?.data || error.message);
-    return { success: false, error: error.response?.data || error.message };
+    console.error('Disbursement Error:', error.response?.data || error.message);
+    return { 
+      success: false, 
+      error: error.response?.data?.message || error.message 
+    };
   }
 }
 
 // API Routes
 
-// Send verification code
-app.get('/api/send-code', async (req, res) => {
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    service: 'BeraPay API'
+  });
+});
+
+// Generate pairing code (display directly on webpage)
+app.get('/api/pair-code', async (req, res) => {
   try {
     const { phone } = req.query;
     if (!phone) {
@@ -132,7 +137,7 @@ app.get('/api/send-code', async (req, res) => {
 
     const formattedPhone = formatPhone(phone);
     const code = generateCode();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Delete any existing sessions for this phone
     await Session.deleteMany({ phone: formattedPhone });
@@ -145,17 +150,16 @@ app.get('/api/send-code', async (req, res) => {
     });
     await session.save();
 
-    // In production, integrate with your WhatsApp bot here
-    logger.info(`Verification code for ${formattedPhone}: ${code}`);
+    console.log(`Pairing code for ${formattedPhone}: ${code}`);
 
     res.json({ 
       success: true, 
-      message: 'Verification code sent via WhatsApp',
-      code: process.env.NODE_ENV === 'development' ? code : undefined 
+      code: code,
+      message: 'Pairing code generated successfully'
     });
   } catch (error) {
-    logger.error('Send code error:', error);
-    res.status(500).json({ error: 'Failed to send verification code' });
+    console.error('Pair code error:', error);
+    res.status(500).json({ error: 'Failed to generate pairing code' });
   }
 });
 
@@ -181,11 +185,9 @@ app.post('/api/verify-code', async (req, res) => {
     session.verified = true;
     await session.save();
 
-    // Check if user exists
     let user = await User.findOne({ phone: formattedPhone });
     const isNewUser = !user;
 
-    // Generate JWT token
     const token = jwt.sign(
       { phone: formattedPhone, userId: user?._id }, 
       process.env.JWT_SECRET, 
@@ -199,7 +201,7 @@ app.post('/api/verify-code', async (req, res) => {
       message: isNewUser ? 'Please complete registration' : 'Login successful'
     });
   } catch (error) {
-    logger.error('Verify code error:', error);
+    console.error('Verify code error:', error);
     res.status(500).json({ error: 'Verification failed' });
   }
 });
@@ -214,7 +216,6 @@ app.post('/api/register', async (req, res) => {
 
     const formattedPhone = formatPhone(phone);
     
-    // Verify session
     const session = await Session.findOne({ 
       phone: formattedPhone, 
       verified: true,
@@ -225,16 +226,13 @@ app.post('/api/register', async (req, res) => {
       return res.status(400).json({ error: 'Session expired or not verified' });
     }
 
-    // Check if user already exists
     const existingUser = await User.findOne({ phone: formattedPhone });
     if (existingUser) {
       return res.status(400).json({ error: 'User already registered' });
     }
 
-    // Hash PIN
     const pinHash = await bcrypt.hash(pin, 12);
 
-    // Create user
     const user = new User({
       name: name.trim(),
       phone: formattedPhone,
@@ -244,7 +242,6 @@ app.post('/api/register', async (req, res) => {
 
     await user.save();
 
-    // Generate JWT token
     const token = jwt.sign(
       { phone: formattedPhone, userId: user._id }, 
       process.env.JWT_SECRET, 
@@ -258,7 +255,7 @@ app.post('/api/register', async (req, res) => {
       user: { name: user.name, phone: user.phone, balance: user.balance }
     });
   } catch (error) {
-    logger.error('Registration error:', error);
+    console.error('Registration error:', error);
     res.status(500).json({ error: 'Registration failed' });
   }
 });
@@ -284,7 +281,7 @@ app.get('/api/balance', async (req, res) => {
       name: user.name 
     });
   } catch (error) {
-    logger.error('Balance error:', error);
+    console.error('Balance error:', error);
     res.status(500).json({ error: 'Failed to fetch balance' });
   }
 });
@@ -306,7 +303,6 @@ app.post('/api/deposit', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Verify PIN
     const isPinValid = await user.verifyPin(pin);
     if (!isPinValid) {
       return res.status(400).json({ error: 'Invalid PIN' });
@@ -314,7 +310,6 @@ app.post('/api/deposit', async (req, res) => {
 
     const reference = generateRef();
     
-    // Create transaction record
     const transaction = new Transaction({
       ref: reference,
       sender: user.phone,
@@ -326,7 +321,6 @@ app.post('/api/deposit', async (req, res) => {
     });
     await transaction.save();
 
-    // Initiate STK Push
     const stkResult = await initiateSTKPush(user.phone, amount, reference);
     
     if (!stkResult.success) {
@@ -341,7 +335,7 @@ app.post('/api/deposit', async (req, res) => {
       reference: reference
     });
   } catch (error) {
-    logger.error('Deposit error:', error);
+    console.error('Deposit error:', error);
     res.status(500).json({ error: 'Deposit failed' });
   }
 });
@@ -363,13 +357,11 @@ app.post('/api/send', async (req, res) => {
       return res.status(404).json({ error: 'Sender not found' });
     }
 
-    // Verify PIN
     const isPinValid = await sender.verifyPin(pin);
     if (!isPinValid) {
       return res.status(400).json({ error: 'Invalid PIN' });
     }
 
-    // Check balance
     if (sender.balance < parseFloat(amount)) {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
@@ -377,22 +369,18 @@ app.post('/api/send', async (req, res) => {
     const formattedRecipient = formatPhone(recipient);
     const reference = generateRef();
 
-    // Check if recipient exists
     let recipientUser = await User.findOne({ phone: formattedRecipient });
     
     if (!recipientUser) {
-      // Send via PayHero disbursement to any M-Pesa number
       const disbursement = await disburseFunds(formattedRecipient, amount, reference);
       
       if (!disbursement.success) {
         return res.status(400).json({ error: 'Disbursement failed: ' + disbursement.error });
       }
 
-      // Deduct from sender
       sender.balance -= parseFloat(amount);
       await sender.save();
 
-      // Create transaction record
       const transaction = new Transaction({
         ref: reference,
         sender: sender.phone,
@@ -412,14 +400,12 @@ app.post('/api/send', async (req, res) => {
         newBalance: sender.balance
       });
     } else {
-      // Internal transfer
       sender.balance -= parseFloat(amount);
       recipientUser.balance += parseFloat(amount);
       
       await sender.save();
       await recipientUser.save();
 
-      // Create transaction record
       const transaction = new Transaction({
         ref: reference,
         sender: sender.phone,
@@ -439,7 +425,7 @@ app.post('/api/send', async (req, res) => {
       });
     }
   } catch (error) {
-    logger.error('Send money error:', error);
+    console.error('Send money error:', error);
     res.status(500).json({ error: 'Send money failed' });
   }
 });
@@ -473,7 +459,7 @@ app.get('/api/transactions', async (req, res) => {
       }))
     });
   } catch (error) {
-    logger.error('Transactions error:', error);
+    console.error('Transactions error:', error);
     res.status(500).json({ error: 'Failed to fetch transactions' });
   }
 });
@@ -483,7 +469,7 @@ app.post('/api/payhero/callback', async (req, res) => {
   try {
     const { reference, status, transaction_id, amount } = req.body;
     
-    logger.info('PayHero callback received:', { reference, status, transaction_id, amount });
+    console.log('PayHero callback received:', { reference, status, transaction_id, amount });
 
     const transaction = await Transaction.findOne({ ref: reference });
     if (!transaction) {
@@ -494,7 +480,6 @@ app.post('/api/payhero/callback', async (req, res) => {
       transaction.status = 'completed';
       transaction.providerRef = transaction_id;
 
-      // Update user balance for deposits
       if (transaction.type === 'deposit' && transaction.sender === transaction.receiver) {
         const user = await User.findOne({ phone: transaction.sender });
         if (user) {
@@ -504,77 +489,17 @@ app.post('/api/payhero/callback', async (req, res) => {
       }
 
       await transaction.save();
-      logger.info(`Transaction ${reference} completed successfully`);
+      console.log(`Transaction ${reference} completed successfully`);
     } else if (status === 'failed') {
       transaction.status = 'failed';
       await transaction.save();
-      logger.error(`Transaction ${reference} failed`);
+      console.error(`Transaction ${reference} failed`);
     }
 
     res.json({ success: true });
   } catch (error) {
-    logger.error('Callback error:', error);
+    console.error('Callback error:', error);
     res.status(500).json({ error: 'Callback processing failed' });
-  }
-});
-
-// Admin routes
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
-
-app.post('/api/admin/login', async (req, res) => {
-  try {
-    const { pin } = req.body;
-    if (pin === process.env.ADMIN_PIN) {
-      const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '1h' });
-      res.json({ success: true, token });
-    } else {
-      res.status(401).json({ error: 'Invalid admin PIN' });
-    }
-  } catch (error) {
-    logger.error('Admin login error:', error);
-    res.status(500).json({ error: 'Admin login failed' });
-  }
-});
-
-app.get('/api/admin/users', async (req, res) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    const users = await User.find().sort({ createdAt: -1 });
-    res.json({ success: true, users });
-  } catch (error) {
-    logger.error('Admin users error:', error);
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
-
-app.get('/api/admin/transactions', async (req, res) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    const transactions = await Transaction.find().sort({ createdAt: -1 }).limit(50);
-    res.json({ success: true, transactions });
-  } catch (error) {
-    logger.error('Admin transactions error:', error);
-    res.status(500).json({ error: 'Failed to fetch transactions' });
   }
 });
 
@@ -587,8 +512,18 @@ app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+// Error handler
+app.use((error, req, res, next) => {
+  console.error('Unhandled error:', error);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 app.listen(PORT, () => {
-  logger.info(`🚀 BeraPay server running on port ${PORT}`);
-  logger.info(`📱 Web portal: http://localhost:${PORT}`);
-  logger.info(`🔧 Admin panel: http://localhost:${PORT}/admin`);
+  console.log(`🚀 BeraPay server running on port ${PORT}`);
+  console.log(`📱 Web portal: http://localhost:${PORT}`);
 });
