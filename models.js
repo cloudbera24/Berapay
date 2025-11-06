@@ -81,10 +81,12 @@ const transactionSchema = new mongoose.Schema({
   }
 });
 
+// Fixed session schema without sessionId field that was causing the error
 const sessionSchema = new mongoose.Schema({
   phone: {
     type: String,
-    required: true
+    required: true,
+    index: true
   },
   code: {
     type: String,
@@ -96,13 +98,18 @@ const sessionSchema = new mongoose.Schema({
   },
   expiresAt: {
     type: Date,
-    required: true
+    required: true,
+    index: { expires: '10m' } // Auto delete after 10 minutes
   },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
+
+// Create compound index to prevent duplicate active sessions for same phone
+sessionSchema.index({ phone: 1, verified: 1 });
+sessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const User = mongoose.model('User', userSchema);
 const Transaction = mongoose.model('Transaction', transactionSchema);
