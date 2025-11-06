@@ -3,99 +3,279 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BeraPay - Link Your WhatsApp</title>
-    <link rel="stylesheet" href="style.css">
+    <title>BeraPay - WhatsApp Money Wallet</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .tagline {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .code-display {
+            background: #f8f9fa;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .instructions {
+            background: #e3f2fd;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 10px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .success {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .error {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
+        .dashboard-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>💳 BeraPay</h1>
-            <p>Secure Money Wallet via WhatsApp</p>
-        </div>
-
-        <div class="card">
-            <h2>🔗 Link Your WhatsApp</h2>
-            
+        <div class="logo">BeraPay</div>
+        <div class="tagline">WhatsApp Money Wallet</div>
+        
+        <div id="linkSection">
             <div class="form-group">
-                <label for="phone">WhatsApp Number:</label>
-                <input 
-                    type="tel" 
-                    id="phone" 
-                    placeholder="254712345678" 
-                    pattern="[0-9]{12}"
-                    required
-                >
-                <small>Enter your WhatsApp number without + sign</small>
+                <label for="phone">Enter your phone number:</label>
+                <input type="tel" id="phone" placeholder="254712345678" maxlength="12">
             </div>
-
-            <button onclick="getLinkCode()" class="btn-primary">
-                Generate Link Code
-            </button>
-
-            <div id="output" class="output"></div>
-        </div>
-
-        <div class="card">
-            <h2>📝 New User?</h2>
-            <p>Register first to create your BeraPay wallet</p>
-            <button onclick="showRegister()" class="btn-secondary">
-                Register Now
-            </button>
-        </div>
-
-        <div class="features">
-            <h3>✨ Features</h3>
-            <div class="feature-grid">
-                <div class="feature">
-                    <span>💸</span>
-                    <p>Send Money</p>
-                </div>
-                <div class="feature">
-                    <span>📥</span>
-                    <p>Deposit via M-Pesa</p>
-                </div>
-                <div class="feature">
-                    <span>📊</span>
-                    <p>View Transactions</p>
-                </div>
-                <div class="feature">
-                    <span>🔒</span>
-                    <p>Secure PIN</p>
-                </div>
+            
+            <button class="btn" onclick="generateCode()">Generate Link Code</button>
+            
+            <div class="instructions">
+                <p><strong>How to link your account:</strong></p>
+                <ol>
+                    <li>Enter your phone number (format: 2547...)</li>
+                    <li>Click "Generate Link Code"</li>
+                    <li>Copy the 6-digit code</li>
+                    <li>Send <strong>.link CODE</strong> to BeraPay WhatsApp bot</li>
+                </ol>
             </div>
         </div>
+        
+        <div id="codeSection" class="hidden">
+            <h3>Your Link Code:</h3>
+            <div class="code-display" id="codeDisplay"></div>
+            <p>Send this code to BeraPay WhatsApp:</p>
+            <p><strong>.link <span id="codeValue"></span></strong></p>
+            
+            <div class="instructions">
+                <p><strong>Next Steps:</strong></p>
+                <ol>
+                    <li>Open WhatsApp</li>
+                    <li>Find BeraPay bot</li>
+                    <li>Send: <strong>.link <span id="codeValue2"></span></strong></li>
+                    <li>Wait for confirmation message</li>
+                    <li>Then type <strong>.menu</strong> to see wallet options</li>
+                </ol>
+            </div>
+            
+            <button class="btn" onclick="checkLinkStatus()">Check Link Status</button>
+            <a href="/dashboard" class="dashboard-link">Go to Dashboard</a>
+        </div>
+        
+        <div id="message" class="hidden"></div>
     </div>
 
-    <!-- Registration Modal -->
-    <div id="registerModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeRegister()">&times;</span>
-            <h2>📝 Register for BeraPay</h2>
+    <script>
+        let currentCode = '';
+        let currentPhone = '';
+        
+        async function generateCode() {
+            const phone = document.getElementById('phone').value.trim();
             
-            <div class="form-group">
-                <label for="regName">Full Name:</label>
-                <input type="text" id="regName" placeholder="John Doe" required>
-            </div>
-
-            <div class="form-group">
-                <label for="regPhone">Phone Number:</label>
-                <input type="tel" id="regPhone" placeholder="254712345678" pattern="[0-9]{12}" required>
-            </div>
-
-            <div class="form-group">
-                <label for="regPin">4-digit PIN:</label>
-                <input type="password" id="regPin" placeholder="1234" pattern="[0-9]{4}" maxlength="4" required>
-                <small>Remember this PIN for transactions</small>
-            </div>
-
-            <button onclick="registerUser()" class="btn-primary">
-                Create Wallet
-            </button>
-
-            <div id="registerOutput"></div>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
+            if (!phone || !phone.startsWith('254')) {
+                showMessage('Please enter a valid phone number starting with 254', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/generate-code', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phone })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentCode = data.code;
+                    currentPhone = phone;
+                    
+                    document.getElementById('codeDisplay').textContent = data.code;
+                    document.getElementById('codeValue').textContent = data.code;
+                    document.getElementById('codeValue2').textContent = data.code;
+                    
+                    document.getElementById('linkSection').classList.add('hidden');
+                    document.getElementById('codeSection').classList.remove('hidden');
+                    
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Failed to generate code. Please try again.', 'error');
+            }
+        }
+        
+        async function checkLinkStatus() {
+            try {
+                const response = await fetch('/api/verify-link', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        phone: currentPhone, 
+                        code: currentCode 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('✅ Account linked successfully! You can now use BeraPay.', 'success');
+                } else {
+                    showMessage('❌ Not linked yet. Please send the code to WhatsApp.', 'error');
+                }
+            } catch (error) {
+                showMessage('Failed to check status. Please try again.', 'error');
+            }
+        }
+        
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = type;
+            messageDiv.classList.remove('hidden');
+            
+            setTimeout(() => {
+                messageDiv.classList.add('hidden');
+            }, 5000);
+        }
+        
+        // Enter key support
+        document.getElementById('phone').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                generateCode();
+            }
+        });
+    </script>
 </body>
 </html>
