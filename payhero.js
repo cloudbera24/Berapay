@@ -1,299 +1,166 @@
 const axios = require('axios');
-const { User, Transaction, Wallet } = require('./models');
 const crypto = require('crypto');
+const { Transaction, User } = require('./models');
 
-class PayHeroService {
+class PayHero {
   constructor() {
     this.apiKey = process.env.PAYHERO_API_KEY;
     this.shortcode = process.env.PAYHERO_SHORTCODE;
-    this.callbackUrl = process.env.PAYHERO_CALLBACK_URL;
+    this.callbackURL = process.env.PAYHERO_CALLBACK_URL;
     this.authToken = process.env.AUTH_TOKEN;
-    this.channelId = process.env.CHANNEL_ID;
+    this.channelID = process.env.CHANNEL_ID;
   }
 
-  async generateAuthToken() {
-    try {
-      const response = await axios.post('https://api.payhero.co.ke/oauth/token', {
-        grant_type: 'client_credentials'
-      }, {
-        headers: {
-          'Authorization': this.authToken,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      return response.data.access_token;
-    } catch (error) {
-      console.error('PayHero auth error:', error.response?.data || error.message);
-      throw new Error('Failed to authenticate with PayHero');
-    }
+  // Generate security credentials
+  generateSecurityCredentials() {
+    const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
+    const password = Buffer.from(`${this.shortcode}${this.apiKey}${timestamp}`).toString('base64');
+    return password;
   }
 
-  async initiateSTKPush(phone, amount, reference) {
+  // Initiate STK Push for deposits
+  async initiateSTKPush(phone, amount, description) {
     try {
-      const token = await this.generateAuthToken();
-      
+      const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
+      const password = this.generateSecurityCredentials();
+
       const payload = {
         BusinessShortCode: this.shortcode,
-        Password: this.generatePassword(),
-        Timestamp: this.getTimestamp(),
+        Password: password,
+        Timestamp: timestamp,
         TransactionType: 'CustomerPayBillOnline',
         Amount: amount,
         PartyA: phone,
         PartyB: this.shortcode,
         PhoneNumber: phone,
-        CallBackURL: this.callbackUrl,
-        AccountReference: reference,
-        TransactionDesc: `BeraPay Deposit - ${reference}`
+        CallBackURL: this.callbackURL,
+        AccountReference: 'BERAPAY',
+        TransactionDesc: description
       };
 
-      const response = await axios.post('https://api.payhero.co.ke/mpesa/stkpush/v1/processrequest', payload, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const response = await axios.post(
+        'https://api.payhero.co.ke/v2/stkpush',
+        payload,
+        {
+          headers: {
+            'Authorization': this.authToken,
+            'Content-Type': 'application/json'
+          }
         }
+      );
+
+      // Create pending transaction
+      const transaction = new Transaction({
+        ref: `DEP${Date.now()}`,
+        sender: phone,
+        receiver: 'BERAPAY',
+        amount,
+        type: 'deposit',
+        status: 'pending',
+        payheroRef: response.data.CheckoutRequestID,
+        description
       });
+
+      await transaction.save();
 
       return response.data;
     } catch (error) {
-      console.error('STK Push error:', error.response?.data || error.message);
-      throw error;
+      console.error('STK Push Error:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.ResponseDescription || 'Payment initiation failed');
     }
   }
 
-  async processB2C(phone, amount, remarks) {
+  // Handle PayHero callback
+  async handleCallback(callbackData) {
     try {
-      const token = await this.generateAuthToken();
-      
+      const { Body } = callbackData;
+      const stkCallback = Body.stkCallback;
+
+      if (stkCallback.ResultCode === 0) {
+        // Payment successful
+        const metadata = stkCallback.CallbackMetadata.Item;
+        const amount = metadata.find(item => item.Name === 'Amount').Value;
+        const mpesaReceipt = metadata.find(item => item.Name === 'MpesaReceiptNumber').Value;
+        const phone = metadata.find(item => item.Name === 'PhoneNumber').Value;
+
+        // Find pending transaction
+        const transaction = await Transaction.findOne({
+          payheroRef: stkCallback.CheckoutRequestID,
+          status: 'pending'
+        });
+
+        if (transaction) {
+          // Update transaction status
+          transaction.status = 'completed';
+          transaction.payheroRef = mpesaReceipt;
+          await transaction.save();
+
+          // Update user balance
+          await User.findOneAndUpdate(
+            { phone: transaction.sender },
+            { $inc: { balance: amount } }
+          );
+
+          console.log(`✅ Deposit completed: ${amount} for ${phone}`);
+        }
+      } else {
+        // Payment failed
+        const transaction = await Transaction.findOne({
+          payheroRef: stkCallback.CheckoutRequestID,
+          status: 'pending'
+        });
+
+        if (transaction) {
+          transaction.status = 'failed';
+          await transaction.save();
+        }
+
+        console.log(`❌ Payment failed: ${stkCallback.ResultDesc}`);
+      }
+
+      return { ResultCode: 0, ResultDesc: 'Success' };
+    } catch (error) {
+      console.error('Callback handling error:', error);
+      return { ResultCode: 1, ResultDesc: 'Failed' };
+    }
+  }
+
+  // Send money (disbursement)
+  async sendMoney(phone, amount, description) {
+    try {
+      const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
+      const password = this.generateSecurityCredentials();
+
       const payload = {
         InitiatorName: 'berapay',
-        SecurityCredential: this.generateSecurityCredential(),
+        SecurityCredential: password,
         CommandID: 'BusinessPayment',
         Amount: amount,
         PartyA: this.shortcode,
         PartyB: phone,
-        Remarks: remarks,
-        QueueTimeOutURL: this.callbackUrl,
-        ResultURL: this.callbackUrl,
+        Remarks: description,
+        QueueTimeOutURL: this.callbackURL,
+        ResultURL: this.callbackURL,
         Occasion: 'BeraPay Payout'
       };
 
-      const response = await axios.post('https://api.payhero.co.ke/mpesa/b2c/v1/paymentrequest', payload, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const response = await axios.post(
+        'https://api.payhero.co.ke/v2/disburse',
+        payload,
+        {
+          headers: {
+            'Authorization': this.authToken,
+            'Content-Type': 'application/json'
+          }
         }
-      });
+      );
 
       return response.data;
     } catch (error) {
-      console.error('B2C error:', error.response?.data || error.message);
-      throw error;
+      console.error('Disbursement Error:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.ResponseDescription || 'Payout failed');
     }
-  }
-
-  generatePassword() {
-    const timestamp = this.getTimestamp();
-    const password = Buffer.from(`${this.shortcode}${process.env.PAYHERO_PASSKEY}${timestamp}`).toString('base64');
-    return password;
-  }
-
-  getTimestamp() {
-    return new Date().toISOString().replace(/[^0-9]/g, '').slice(0, -3);
-  }
-
-  generateSecurityCredential() {
-    // This should be encrypted with the public certificate
-    // For production, implement proper certificate encryption
-    return Buffer.from(`${this.shortcode}${Date.now()}`).toString('base64');
   }
 }
 
-const payhero = new PayHeroService();
-
-// Deposit processing
-async function processDeposit(phone, amount) {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const user = await User.findOne({ phone }).session(session);
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    const reference = `DP${Date.now()}${Math.random().toString(36).substr(2, 5)}`.toUpperCase();
-    
-    // Create pending transaction
-    const transaction = new Transaction({
-      transactionId: reference,
-      receiver: phone,
-      amount,
-      type: 'deposit',
-      status: 'pending',
-      description: `Deposit to BeraPay wallet`,
-      metadata: { reference, phone, amount }
-    });
-
-    await transaction.save({ session });
-
-    // Initiate STK Push
-    const stkResult = await payhero.initiateSTKPush(phone, amount, reference);
-    
-    if (stkResult.ResponseCode === '0') {
-      await session.commitTransaction();
-      return {
-        success: true,
-        message: 'STK Push initiated. Check your phone to complete payment.',
-        reference,
-        checkoutRequestID: stkResult.CheckoutRequestID
-      };
-    } else {
-      await session.abortTransaction();
-      return {
-        success: false,
-        message: stkResult.ResponseDescription || 'Failed to initiate payment'
-      };
-    }
-  } catch (error) {
-    await session.abortTransaction();
-    console.error('Deposit error:', error);
-    return {
-      success: false,
-      message: error.message || 'Deposit processing failed'
-    };
-  } finally {
-    session.endSession();
-  }
-}
-
-// Transfer processing
-async function processTransfer(senderPhone, recipientPhone, amount) {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const sender = await User.findOne({ phone: senderPhone }).session(session);
-    const recipient = await User.findOne({ phone: recipientPhone }).session(session);
-
-    if (!sender) throw new Error('Sender not found');
-    if (!recipient) throw new Error('Recipient not found');
-    if (sender.balance < amount) throw new Error('Insufficient balance');
-
-    const reference = `TX${Date.now()}${Math.random().toString(36).substr(2, 5)}`.toUpperCase();
-
-    // Deduct from sender
-    sender.balance -= amount;
-    await sender.save({ session });
-
-    // Add to recipient
-    recipient.balance += amount;
-    await recipient.save({ session });
-
-    // Create transaction record
-    const transaction = new Transaction({
-      transactionId: reference,
-      sender: senderPhone,
-      receiver: recipientPhone,
-      amount,
-      type: 'transfer',
-      status: 'completed',
-      description: `Transfer to ${recipientPhone}`,
-      metadata: { reference, senderPhone, recipientPhone, amount }
-    });
-
-    await transaction.save({ session });
-    await session.commitTransaction();
-
-    return {
-      success: true,
-      message: 'Transfer completed successfully',
-      newBalance: sender.balance,
-      reference
-    };
-  } catch (error) {
-    await session.abortTransaction();
-    console.error('Transfer error:', error);
-    return {
-      success: false,
-      message: error.message || 'Transfer failed'
-    };
-  } finally {
-    session.endSession();
-  }
-}
-
-// Withdrawal processing
-async function processWithdrawal(phone, amount) {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const user = await User.findOne({ phone }).session(session);
-    if (!user) throw new Error('User not found');
-    if (user.balance < amount) throw new Error('Insufficient balance');
-
-    const reference = `WD${Date.now()}${Math.random().toString(36).substr(2, 5)}`.toUpperCase();
-
-    // Deduct from user balance
-    user.balance -= amount;
-    await user.save({ session });
-
-    // Create pending withdrawal transaction
-    const transaction = new Transaction({
-      transactionId: reference,
-      sender: phone,
-      amount,
-      type: 'withdrawal',
-      status: 'pending',
-      description: `Withdrawal to M-Pesa`,
-      metadata: { reference, phone, amount }
-    });
-
-    await transaction.save({ session });
-
-    // Process B2C payout
-    const b2cResult = await payhero.processB2C(phone, amount, `BeraPay Withdrawal - ${reference}`);
-    
-    if (b2cResult.ResponseCode === '0') {
-      transaction.status = 'completed';
-      await transaction.save({ session });
-      await session.commitTransaction();
-
-      return {
-        success: true,
-        message: 'Withdrawal processed successfully',
-        newBalance: user.balance,
-        reference
-      };
-    } else {
-      // Refund user if B2C fails
-      user.balance += amount;
-      await user.save({ session });
-      transaction.status = 'failed';
-      await transaction.save({ session });
-      
-      await session.commitTransaction();
-      return {
-        success: false,
-        message: b2cResult.ResponseDescription || 'Withdrawal failed'
-      };
-    }
-  } catch (error) {
-    await session.abortTransaction();
-    console.error('Withdrawal error:', error);
-    return {
-      success: false,
-      message: error.message || 'Withdrawal processing failed'
-    };
-  } finally {
-    session.endSession();
-  }
-}
-
-module.exports = {
-  processDeposit,
-  processTransfer,
-  processWithdrawal,
-  payhero
-};
+module.exports = new PayHero();
