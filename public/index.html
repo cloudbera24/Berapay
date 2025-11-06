@@ -80,17 +80,42 @@
             font-weight: 600;
             cursor: pointer;
             width: 100%;
-            transition: transform 0.2s;
+            transition: all 0.3s ease;
         }
         
         .btn:hover {
             transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
         
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+        }
+        
+        .btn.loading {
+            position: relative;
+            color: transparent;
+        }
+        
+        .btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin-left: -10px;
+            margin-top: -10px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         .code-display {
@@ -127,11 +152,21 @@
         .success {
             color: #28a745;
             font-weight: 600;
+            background: #d4edda;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #c3e6cb;
         }
         
         .error {
             color: #dc3545;
             font-weight: 600;
+            background: #f8d7da;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #f5c6cb;
         }
         
         .dashboard-link {
@@ -140,6 +175,15 @@
             color: #667eea;
             text-decoration: none;
             font-weight: 600;
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .dashboard-link:hover {
+            background: #667eea;
+            color: white;
         }
     </style>
 </head>
@@ -152,9 +196,14 @@
             <div class="form-group">
                 <label for="phone">Enter your phone number:</label>
                 <input type="tel" id="phone" placeholder="254712345678" maxlength="12">
+                <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">
+                    Format: 2547XXXXXXXX (12 digits)
+                </small>
             </div>
             
-            <button class="btn" onclick="generateCode()">Generate Link Code</button>
+            <button class="btn" id="generateBtn" onclick="generateCode()">
+                Generate Link Code
+            </button>
             
             <div class="instructions">
                 <p><strong>How to link your account:</strong></p>
@@ -163,29 +212,39 @@
                     <li>Click "Generate Link Code"</li>
                     <li>Copy the 6-digit code</li>
                     <li>Send <strong>.link CODE</strong> to BeraPay WhatsApp bot</li>
+                    <li>Wait for confirmation message</li>
                 </ol>
             </div>
         </div>
         
         <div id="codeSection" class="hidden">
             <h3>Your Link Code:</h3>
-            <div class="code-display" id="codeDisplay"></div>
-            <p>Send this code to BeraPay WhatsApp:</p>
-            <p><strong>.link <span id="codeValue"></span></strong></p>
+            <div class="code-display" id="codeDisplay">Loading...</div>
+            <p><strong>Send this message to BeraPay WhatsApp:</strong></p>
+            <p style="font-size: 1.2rem; background: #f1f3f4; padding: 10px; border-radius: 8px; margin: 10px 0;">
+                <strong>.link <span id="codeValue"></span></strong>
+            </p>
             
             <div class="instructions">
                 <p><strong>Next Steps:</strong></p>
                 <ol>
                     <li>Open WhatsApp</li>
-                    <li>Find BeraPay bot</li>
-                    <li>Send: <strong>.link <span id="codeValue2"></span></strong></li>
+                    <li>Find BeraPay bot (save this number: +XXXXXXXXXX)</li>
+                    <li>Send exactly: <strong>.link <span id="codeValue2"></span></strong></li>
                     <li>Wait for confirmation message</li>
                     <li>Then type <strong>.menu</strong> to see wallet options</li>
                 </ol>
             </div>
             
-            <button class="btn" onclick="checkLinkStatus()">Check Link Status</button>
+            <button class="btn" onclick="checkLinkStatus()" id="statusBtn">
+                Check Link Status
+            </button>
+            <br>
             <a href="/dashboard" class="dashboard-link">Go to Dashboard</a>
+            <br>
+            <button class="btn" onclick="resetForm()" style="background: #6c757d; margin-top: 10px;">
+                Generate New Code
+            </button>
         </div>
         
         <div id="message" class="hidden"></div>
@@ -195,15 +254,47 @@
         let currentCode = '';
         let currentPhone = '';
         
+        // Show loading state
+        function setLoading(button, isLoading) {
+            if (isLoading) {
+                button.disabled = true;
+                button.classList.add('loading');
+                button.innerHTML = 'Processing...';
+            } else {
+                button.disabled = false;
+                button.classList.remove('loading');
+                button.innerHTML = 'Generate Link Code';
+            }
+        }
+        
         async function generateCode() {
             const phone = document.getElementById('phone').value.trim();
+            const generateBtn = document.getElementById('generateBtn');
             
-            if (!phone || !phone.startsWith('254')) {
-                showMessage('Please enter a valid phone number starting with 254', 'error');
+            console.log('Generate button clicked with phone:', phone);
+            
+            // Validate phone number
+            if (!phone) {
+                showMessage('Please enter a phone number', 'error');
                 return;
             }
             
+            if (!phone.startsWith('254')) {
+                showMessage('Phone number must start with 254', 'error');
+                return;
+            }
+            
+            if (phone.length !== 12) {
+                showMessage('Phone number must be 12 digits (2547XXXXXXXX)', 'error');
+                return;
+            }
+            
+            // Show loading state
+            setLoading(generateBtn, true);
+            
             try {
+                console.log('Making API request to /api/generate-code...');
+                
                 const response = await fetch('/api/generate-code', {
                     method: 'POST',
                     headers: {
@@ -212,7 +303,10 @@
                     body: JSON.stringify({ phone })
                 });
                 
+                console.log('Response status:', response.status);
+                
                 const data = await response.json();
+                console.log('API response:', data);
                 
                 if (data.success) {
                     currentCode = data.code;
@@ -222,19 +316,35 @@
                     document.getElementById('codeValue').textContent = data.code;
                     document.getElementById('codeValue2').textContent = data.code;
                     
+                    // Show code section, hide link section
                     document.getElementById('linkSection').classList.add('hidden');
                     document.getElementById('codeSection').classList.remove('hidden');
                     
                     showMessage(data.message, 'success');
+                    
+                    // Auto-check status after 5 seconds
+                    setTimeout(() => {
+                        checkLinkStatus();
+                    }, 5000);
+                    
                 } else {
-                    showMessage(data.error, 'error');
+                    showMessage(data.error || 'Failed to generate code', 'error');
                 }
             } catch (error) {
-                showMessage('Failed to generate code. Please try again.', 'error');
+                console.error('API call failed:', error);
+                showMessage('Network error: Failed to generate code. Please check your connection.', 'error');
+            } finally {
+                setLoading(generateBtn, false);
             }
         }
         
         async function checkLinkStatus() {
+            const statusBtn = document.getElementById('statusBtn');
+            const originalText = statusBtn.innerHTML;
+            
+            statusBtn.disabled = true;
+            statusBtn.innerHTML = 'Checking...';
+            
             try {
                 const response = await fetch('/api/verify-link', {
                     method: 'POST',
@@ -250,13 +360,33 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showMessage('✅ Account linked successfully! You can now use BeraPay.', 'success');
+                    showMessage('✅ Account linked successfully! You can now use BeraPay on WhatsApp.', 'success');
+                    statusBtn.style.background = '#28a745';
+                    statusBtn.innerHTML = '✅ Linked!';
                 } else {
                     showMessage('❌ Not linked yet. Please send the code to WhatsApp.', 'error');
+                    statusBtn.innerHTML = 'Not Linked - Try Again';
                 }
             } catch (error) {
+                console.error('Status check failed:', error);
                 showMessage('Failed to check status. Please try again.', 'error');
+                statusBtn.innerHTML = 'Check Failed';
+            } finally {
+                setTimeout(() => {
+                    statusBtn.disabled = false;
+                    statusBtn.innerHTML = originalText;
+                    statusBtn.style.background = '';
+                }, 3000);
             }
+        }
+        
+        function resetForm() {
+            document.getElementById('codeSection').classList.add('hidden');
+            document.getElementById('linkSection').classList.remove('hidden');
+            document.getElementById('phone').value = '';
+            document.getElementById('message').classList.add('hidden');
+            currentCode = '';
+            currentPhone = '';
         }
         
         function showMessage(text, type) {
@@ -265,16 +395,55 @@
             messageDiv.className = type;
             messageDiv.classList.remove('hidden');
             
-            setTimeout(() => {
-                messageDiv.classList.add('hidden');
-            }, 5000);
+            // Scroll to message
+            messageDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Auto-hide success messages after 8 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    messageDiv.classList.add('hidden');
+                }, 8000);
+            }
         }
         
-        // Enter key support
+        // Enter key support for phone input
         document.getElementById('phone').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 generateCode();
             }
+        });
+        
+        // Real-time phone validation
+        document.getElementById('phone').addEventListener('input', function(e) {
+            const phone = e.target.value;
+            const generateBtn = document.getElementById('generateBtn');
+            
+            // Basic validation
+            if (phone.length === 12 && phone.startsWith('254')) {
+                generateBtn.disabled = false;
+            } else {
+                generateBtn.disabled = true;
+            }
+            
+            // Auto-format: remove non-digits and limit to 12 characters
+            let cleanPhone = phone.replace(/\D/g, '');
+            if (cleanPhone.length > 12) {
+                cleanPhone = cleanPhone.substring(0, 12);
+            }
+            e.target.value = cleanPhone;
+        });
+        
+        // Add click sound effect (optional)
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('btn') && !e.target.disabled) {
+                // Optional: Add click sound here
+                console.log('Button clicked:', e.target.textContent);
+            }
+        });
+        
+        // Initialize button state
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('generateBtn').disabled = true;
         });
     </script>
 </body>
