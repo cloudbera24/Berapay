@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BeraPay - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💸 BeraPay Dashboard</h1>
+            <div class="user-info">
+                <span id="userName">Loading...</span>
+                <button onclick="logout()" class="btn-secondary">Logout</button>
+            </div>
+        </div>
+
+        <div class="balance-card">
+            <h3>Your Balance</h3>
+            <div class="balance-amount" id="balanceAmount">KSh 0</div>
+            <div class="balance-actions">
+                <button onclick="showDepositModal()" class="btn-success">📥 Deposit</button>
+                <button onclick="showSendModal()" class="btn-primary">💸 Send</button>
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <h3>Quick Actions</h3>
+            <div class="action-grid">
+                <button onclick="showDepositModal()" class="action-btn">
+                    <span>📥</span>
+                    <span>Deposit</span>
+                </button>
+                <button onclick="showSendModal()" class="action-btn">
+                    <span>💸</span>
+                    <span>Send Money</span>
+                </button>
+                <button onclick="loadTransactions()" class="action-btn">
+                    <span>📜</span>
+                    <span>Transactions</span>
+                </button>
+                <button onclick="refreshBalance()" class="action-btn">
+                    <span>🔄</span>
+                    <span>Refresh</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="transactions-section">
+            <h3>Recent Transactions</h3>
+            <div id="transactionsList" class="transactions-list">
+                <div class="loading">Loading transactions...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deposit Modal -->
+    <div id="depositModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>📥 Deposit Funds</h3>
+            <div class="input-group">
+                <label for="depositAmount">Amount (KSh)</label>
+                <input type="number" id="depositAmount" placeholder="Enter amount" min="10">
+            </div>
+            <div class="input-group">
+                <label for="depositPin">Your PIN</label>
+                <input type="password" id="depositPin" placeholder="Enter 4-digit PIN" maxlength="4">
+            </div>
+            <div class="modal-actions">
+                <button onclick="processDeposit()" class="btn-success">Initiate Deposit</button>
+                <button onclick="hideModal('depositModal')" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Send Money Modal -->
+    <div id="sendModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>💸 Send Money</h3>
+            <div class="input-group">
+                <label for="sendAmount">Amount (KSh)</label>
+                <input type="number" id="sendAmount" placeholder="Enter amount" min="1">
+            </div>
+            <div class="input-group">
+                <label for="sendRecipient">Recipient Phone</label>
+                <input type="tel" id="sendRecipient" placeholder="0712345678">
+            </div>
+            <div class="input-group">
+                <label for="sendPin">Your PIN</label>
+                <input type="password" id="sendPin" placeholder="Enter 4-digit PIN" maxlength="4">
+            </div>
+            <div class="modal-actions">
+                <button onclick="processSend()" class="btn-primary">Send Money</button>
+                <button onclick="hideModal('sendModal')" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('beraToken');
+        
+        if (!token) {
+            window.location.href = '/';
+        }
+
+        async function loadUserData() {
+            try {
+                const [balanceRes, transactionsRes] = await Promise.all([
+                    fetch('/api/balance', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch('/api/transactions', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                ]);
+
+                const balanceData = await balanceRes.json();
+                const transactionsData = await transactionsRes.json();
+
+                if (balanceData.success) {
+                    document.getElementById('userName').textContent = balanceData.name;
+                    document.getElementById('balanceAmount').textContent = `KSh ${balanceData.balance}`;
+                }
+
+                if (transactionsData.success) {
+                    displayTransactions(transactionsData.transactions);
+                }
+            } catch (error) {
+                showMessage('Failed to load data', 'error');
+            }
+        }
+
+        function displayTransactions(transactions) {
+            const container = document.getElementById('transactionsList');
+            
+            if (transactions.length === 0) {
+                container.innerHTML = '<div class="no-data">No transactions yet</div>';
+                return;
+            }
+
+            container.innerHTML = transactions.map(tx => `
+                <div class="transaction-item ${tx.isOutgoing ? 'outgoing' : 'incoming'}">
+                    <div class="tx-icon">${tx.isOutgoing ? '📤' : '📥'}</div>
+                    <div class="tx-details">
+                        <div class="tx-description">${tx.description}</div>
+                        <div class="tx-meta">
+                            <span class="tx-amount ${tx.isOutgoing ? 'negative' : 'positive'}">
+                                ${tx.isOutgoing ? '-' : '+'}KSh ${tx.amount}
+                            </span>
+                            <span class="tx-date">${new Date(tx.date).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                    <div class="tx-status ${tx.status}">${tx.status}</div>
+                </div>
+            `).join('');
+        }
+
+        async function refreshBalance() {
+            try {
+                const response = await fetch('/api/balance', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('balanceAmount').textContent = `KSh ${data.balance}`;
+                    showMessage('Balance updated', 'success');
+                    loadTransactions();
+                }
+            } catch (error) {
+                showMessage('Failed to refresh balance', 'error');
+            }
+        }
+
+        async function processDeposit() {
+            const amount = document.getElementById('depositAmount').value;
+            const pin = document.getElementById('depositPin').value;
+
+            if (!amount || amount < 10) {
+                showMessage('Please enter a valid amount (min KSh 10)', 'error');
+                return;
+            }
+
+            if (!pin || pin.length !== 4) {
+                showMessage('Please enter your 4-digit PIN', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/deposit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ amount: parseFloat(amount), pin: pin })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('Deposit initiated! Check your phone for STK Push.', 'success');
+                    hideModal('depositModal');
+                    refreshBalance();
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Deposit failed. Please try again.', 'error');
+            }
+        }
+
+        async function processSend() {
+            const amount = document.getElementById('sendAmount').value;
+            const recipient = document.getElementById('sendRecipient').value;
+            const pin = document.getElementById('sendPin').value;
+
+            if (!amount || amount < 1) {
+                showMessage('Please enter a valid amount', 'error');
+                return;
+            }
+
+            if (!recipient) {
+                showMessage('Please enter recipient phone number', 'error');
+                return;
+            }
+
+            if (!pin || pin.length !== 4) {
+                showMessage('Please enter your 4-digit PIN', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ 
+                        recipient: recipient, 
+                        amount: parseFloat(amount), 
+                        pin: pin 
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage(`KSh ${amount} sent to ${recipient} successfully!`, 'success');
+                    hideModal('sendModal');
+                    refreshBalance();
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Send money failed. Please try again.', 'error');
+            }
+        }
+
+        function showDepositModal() {
+            document.getElementById('depositModal').classList.remove('hidden');
+        }
+
+        function showSendModal() {
+            document.getElementById('sendModal').classList.remove('hidden');
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+            // Clear inputs
+            document.querySelectorAll(`#${modalId} input`).forEach(input => input.value = '');
+        }
+
+        async function loadTransactions() {
+            try {
+                const response = await fetch('/api/transactions', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayTransactions(data.transactions);
+                }
+            } catch (error) {
+                showMessage('Failed to load transactions', 'error');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('beraToken');
+            window.location.href = '/';
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            
+            document.querySelector('.container').prepend(messageDiv);
+            
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 5000);
+        }
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', loadUserData);
+
+        // Refresh every 30 seconds
+        setInterval(refreshBalance, 30000);
+    </script>
+</body>
+</html>
