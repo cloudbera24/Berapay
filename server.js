@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs-extra');
+const fs = require('fs'); // Using native fs instead of fs-extra
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,15 +14,27 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static('public'));
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/berapay', {
+// Create public directory if it doesn't exist
+const publicDir = path.join(__dirname, 'public');
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir, { recursive: true });
+}
+
+// Serve static files from public directory
+app.use(express.static(publicDir));
+
+// MongoDB Connection with fallback
+const MONGODB_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/berapay';
+mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
 .then(() => console.log('✅ MongoDB Connected'))
-.catch(err => console.error('❌ MongoDB Connection Error:', err));
+.catch(err => {
+  console.error('❌ MongoDB Connection Error:', err);
+  console.log('⚠️  Continuing without MongoDB - using in-memory storage');
+});
 
 // MongoDB Models
 const userSchema = new mongoose.Schema({
@@ -141,6 +153,13 @@ const User = mongoose.model('User', userSchema);
 const Transaction = mongoose.model('Transaction', transactionSchema);
 const Session = mongoose.model('Session', sessionSchema);
 
+// In-memory storage fallback
+const memoryStorage = {
+  sessions: new Map(),
+  users: new Map(),
+  transactions: []
+};
+
 // Serve main page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -167,28 +186,39 @@ app.post('/generate-code', async (req, res) => {
 
     // Generate 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
     
-    // Create session (expires in 5 minutes)
-    const session = new Session({
-      phone,
-      code,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
-    });
-
-    await session.save();
+    try {
+      // Try MongoDB first
+      const session = new Session({
+        phone,
+        code,
+        expiresAt
+      });
+      await session.save();
+    } catch (mongoError) {
+      console.log('⚠️  MongoDB not available, using memory storage');
+      // Fallback to memory storage
+      memoryStorage.sessions.set(code, {
+        phone,
+        code,
+        expiresAt,
+        verified: false
+      });
+    }
 
     console.log('✅ Code generated:', code, 'for', phone);
 
     res.json({ 
       success: true, 
       code,
-      message: 'Code generated successfully'
+      message: 'Code generated successfully. It expires in 5 minutes.'
     });
   } catch (error) {
     console.error('❌ Generate code error:', error);
     res.status(500).json({ 
       success: false,
-      error: error.message 
+      error: 'Failed to generate code. Please try again.' 
     });
   }
 });
@@ -198,25 +228,38 @@ app.get('/api/wallet/:phone', async (req, res) => {
   try {
     const { phone } = req.params;
     
-    const user = await User.findOne({ phone });
+    let user, transactions;
+
+    try {
+      // Try MongoDB first
+      user = await User.findOne({ phone });
+      transactions = await Transaction.find({
+        $or: [{ sender: phone }, { receiver: phone }]
+      })
+      .sort({ createdAt: -1 })
+      .limit(10);
+    } catch (mongoError) {
+      console.log('⚠️  MongoDB not available, using memory storage');
+      // Fallback to memory storage
+      user = memoryStorage.users.get(phone);
+      transactions = memoryStorage.transactions
+        .filter(t => t.sender === phone || t.receiver === phone)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 10);
+    }
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-
-    const transactions = await Transaction.find({
-      $or: [{ sender: phone }, { receiver: phone }]
-    })
-    .sort({ createdAt: -1 })
-    .limit(10);
 
     res.json({
       user: {
         name: user.name,
         phone: user.phone,
-        balance: user.balance,
-        linked: user.linked
+        balance: user.balance || 0,
+        linked: user.linked || false
       },
-      transactions
+      transactions: transactions || []
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -238,14 +281,28 @@ app.post('/api/wallet/send', async (req, res) => {
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
-    // Find sender
-    const sender = await User.findOne({ phone: fromPhone });
+    let sender, recipient;
+
+    try {
+      // Try MongoDB first
+      sender = await User.findOne({ phone: fromPhone });
+      recipient = await User.findOne({ phone: toPhone });
+    } catch (mongoError) {
+      console.log('⚠️  MongoDB not available, using memory storage');
+      // Fallback to memory storage
+      sender = memoryStorage.users.get(fromPhone);
+      recipient = memoryStorage.users.get(toPhone);
+    }
+
     if (!sender) {
       return res.status(404).json({ error: 'Sender not found' });
     }
 
     // Verify PIN
-    const isPinValid = await sender.comparePin(pin);
+    const isPinValid = await sender.comparePin ? 
+      await sender.comparePin(pin) : 
+      (sender.pinHash === pin); // Simple fallback for memory storage
+
     if (!isPinValid) {
       return res.status(401).json({ error: 'Invalid PIN' });
     }
@@ -255,58 +312,49 @@ app.post('/api/wallet/send', async (req, res) => {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
 
-    // Find recipient
-    const recipient = await User.findOne({ phone: toPhone });
     if (!recipient) {
       return res.status(404).json({ error: 'Recipient not found' });
     }
 
-    // Start transaction
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-      // Update sender balance
-      await User.findOneAndUpdate(
-        { phone: fromPhone },
-        { $inc: { balance: -amountNum } },
-        { session }
-      );
-
-      // Update recipient balance
-      await User.findOneAndUpdate(
-        { phone: toPhone },
-        { $inc: { balance: amountNum } },
-        { session }
-      );
+      // Update balances
+      sender.balance -= amountNum;
+      recipient.balance += amountNum;
 
       // Create transaction record
-      const transaction = new Transaction({
+      const transaction = {
         ref: `TRF${Date.now()}`,
         sender: fromPhone,
         receiver: toPhone,
         amount: amountNum,
         type: 'transfer',
         status: 'completed',
-        description: `Transfer to ${recipient.name}`
-      });
+        description: `Transfer to ${recipient.name}`,
+        createdAt: new Date()
+      };
 
-      await transaction.save({ session });
-
-      // Commit transaction
-      await session.commitTransaction();
-      session.endSession();
+      if (mongoose.connection.readyState === 1) {
+        // Use MongoDB
+        await User.findOneAndUpdate({ phone: fromPhone }, { $inc: { balance: -amountNum } });
+        await User.findOneAndUpdate({ phone: toPhone }, { $inc: { balance: amountNum } });
+        
+        const mongoTransaction = new Transaction(transaction);
+        await mongoTransaction.save();
+      } else {
+        // Use memory storage
+        memoryStorage.users.set(fromPhone, sender);
+        memoryStorage.users.set(toPhone, recipient);
+        memoryStorage.transactions.push(transaction);
+      }
 
       res.json({
         success: true,
         message: 'Transfer successful',
-        newBalance: sender.balance - amountNum,
+        newBalance: sender.balance,
         transactionRef: transaction.ref
       });
 
     } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
       throw error;
     }
 
@@ -315,53 +363,68 @@ app.post('/api/wallet/send', async (req, res) => {
   }
 });
 
-// Get transaction history
-app.get('/api/wallet/transactions/:phone', async (req, res) => {
+// User registration endpoint
+app.post('/api/register', async (req, res) => {
   try {
-    const { phone } = req.params;
-    const { limit = 20, page = 1 } = req.query;
+    const { phone, name, pin } = req.body;
 
-    const transactions = await Transaction.find({
-      $or: [{ sender: phone }, { receiver: phone }]
-    })
-    .sort({ createdAt: -1 })
-    .limit(parseInt(limit))
-    .skip((parseInt(page) - 1) * parseInt(limit));
+    if (!phone || !name || !pin) {
+      return res.status(400).json({ error: 'Phone, name, and PIN are required' });
+    }
 
-    const total = await Transaction.countDocuments({
-      $or: [{ sender: phone }, { receiver: phone }]
-    });
+    if (!phone.match(/^254[0-9]{9}$/)) {
+      return res.status(400).json({ error: 'Valid Kenyan phone number required (2547...)' });
+    }
+
+    if (!/^\d{4}$/.test(pin)) {
+      return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
+    }
+
+    let existingUser;
+    try {
+      existingUser = await User.findOne({ phone });
+    } catch (mongoError) {
+      existingUser = memoryStorage.users.get(phone);
+    }
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'User already registered' });
+    }
+
+    const newUser = {
+      name,
+      phone,
+      pinHash: pin, // In production, this should be hashed
+      balance: 0,
+      linked: true,
+      createdAt: new Date()
+    };
+
+    if (mongoose.connection.readyState === 1) {
+      // Use MongoDB
+      const user = new User(newUser);
+      await user.save();
+    } else {
+      // Use memory storage
+      memoryStorage.users.set(phone, newUser);
+    }
 
     res.json({
       success: true,
-      transactions,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit))
+      message: 'Registration successful',
+      user: {
+        name: newUser.name,
+        phone: newUser.phone,
+        balance: newUser.balance
       }
     });
   } catch (error) {
+    console.error('Registration error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// PayHero callback endpoint (Mock for now)
-app.post('/api/payhero/callback', async (req, res) => {
-  try {
-    console.log('📞 PayHero callback received:', JSON.stringify(req.body, null, 2));
-    
-    // Mock successful payment processing
-    // In production, this would integrate with real PayHero API
-    res.json({ ResultCode: 0, ResultDesc: 'Success' });
-  } catch (error) {
-    console.error('Callback error:', error);
-    res.status(500).json({ ResultCode: 1, ResultDesc: 'Failed' });
-  }
-});
-
-// Mock deposit endpoint (Replace with real PayHero integration)
+// Mock deposit endpoint
 app.post('/api/payhero/deposit', async (req, res) => {
   try {
     const { phone, amount, description } = req.body;
@@ -375,8 +438,13 @@ app.post('/api/payhero/deposit', async (req, res) => {
       return res.status(400).json({ error: 'Amount must be between KSh 10 and KSh 70,000' });
     }
 
-    // Check if user exists
-    const user = await User.findOne({ phone });
+    let user;
+    try {
+      user = await User.findOne({ phone });
+    } catch (mongoError) {
+      user = memoryStorage.users.get(phone);
+    }
+
     if (!user) {
       return res.status(404).json({ error: 'User not found. Please register first.' });
     }
@@ -390,8 +458,7 @@ app.post('/api/payhero/deposit', async (req, res) => {
       CustomerMessage: 'Success. Request accepted for processing'
     };
 
-    // Create pending transaction
-    const transaction = new Transaction({
+    const transaction = {
       ref: `DEP${Date.now()}`,
       sender: phone,
       receiver: 'BERAPAY',
@@ -399,29 +466,43 @@ app.post('/api/payhero/deposit', async (req, res) => {
       type: 'deposit',
       status: 'pending',
       payheroRef: mockResponse.CheckoutRequestID,
-      description: description || 'BeraPay Deposit'
-    });
+      description: description || 'BeraPay Deposit',
+      createdAt: new Date()
+    };
 
-    await transaction.save();
+    if (mongoose.connection.readyState === 1) {
+      const mongoTransaction = new Transaction(transaction);
+      await mongoTransaction.save();
+    } else {
+      memoryStorage.transactions.push(transaction);
+    }
 
-    // Simulate payment processing (in real system, this would wait for PayHero callback)
+    // Simulate payment processing
     setTimeout(async () => {
       try {
         // Update transaction status
         transaction.status = 'completed';
-        await transaction.save();
-
+        
         // Update user balance
-        await User.findOneAndUpdate(
-          { phone },
-          { $inc: { balance: amountNum } }
-        );
+        user.balance += amountNum;
+
+        if (mongoose.connection.readyState === 1) {
+          await User.findOneAndUpdate({ phone }, { $inc: { balance: amountNum } });
+          await Transaction.findOneAndUpdate({ ref: transaction.ref }, { status: 'completed' });
+        } else {
+          memoryStorage.users.set(phone, user);
+          // Update transaction in memory
+          const txIndex = memoryStorage.transactions.findIndex(t => t.ref === transaction.ref);
+          if (txIndex !== -1) {
+            memoryStorage.transactions[txIndex].status = 'completed';
+          }
+        }
 
         console.log(`✅ Mock deposit completed: KSh ${amountNum} for ${phone}`);
       } catch (error) {
         console.error('❌ Mock deposit processing error:', error);
       }
-    }, 5000); // Simulate 5 second processing time
+    }, 5000);
 
     res.json({
       success: true,
@@ -447,16 +528,25 @@ app.post('/api/payhero/withdraw', async (req, res) => {
 
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum < 10) {
-      return res.status(500).json({ error: 'Invalid amount' });
+      return res.status(400).json({ error: 'Invalid amount' });
     }
 
-    // Find user and verify PIN
-    const user = await User.findOne({ phone });
+    let user;
+    try {
+      user = await User.findOne({ phone });
+    } catch (mongoError) {
+      user = memoryStorage.users.get(phone);
+    }
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const isPinValid = await user.comparePin(pin);
+    // Verify PIN
+    const isPinValid = await user.comparePin ? 
+      await user.comparePin(pin) : 
+      (user.pinHash === pin);
+
     if (!isPinValid) {
       return res.status(401).json({ error: 'Invalid PIN' });
     }
@@ -467,27 +557,47 @@ app.post('/api/payhero/withdraw', async (req, res) => {
     }
 
     // Create withdrawal transaction
-    const transaction = new Transaction({
+    const transaction = {
       ref: `WDL${Date.now()}`,
       sender: 'BERAPAY',
       receiver: phone,
       amount: amountNum,
       type: 'withdrawal',
       status: 'pending',
-      description: 'Withdrawal from BeraPay'
-    });
+      description: 'Withdrawal from BeraPay',
+      createdAt: new Date()
+    };
 
-    await transaction.save();
+    if (mongoose.connection.readyState === 1) {
+      const mongoTransaction = new Transaction(transaction);
+      await mongoTransaction.save();
+    } else {
+      memoryStorage.transactions.push(transaction);
+    }
 
     // Deduct from balance immediately
     user.balance -= amountNum;
-    await user.save();
+
+    if (mongoose.connection.readyState === 1) {
+      await User.findOneAndUpdate({ phone }, { balance: user.balance });
+    } else {
+      memoryStorage.users.set(phone, user);
+    }
 
     // Simulate M-Pesa processing
     setTimeout(async () => {
       try {
         transaction.status = 'completed';
-        await transaction.save();
+        
+        if (mongoose.connection.readyState === 1) {
+          await Transaction.findOneAndUpdate({ ref: transaction.ref }, { status: 'completed' });
+        } else {
+          const txIndex = memoryStorage.transactions.findIndex(t => t.ref === transaction.ref);
+          if (txIndex !== -1) {
+            memoryStorage.transactions[txIndex].status = 'completed';
+          }
+        }
+
         console.log(`✅ Mock withdrawal completed: KSh ${amountNum} to ${phone}`);
       } catch (error) {
         console.error('❌ Mock withdrawal processing error:', error);
@@ -507,82 +617,18 @@ app.post('/api/payhero/withdraw', async (req, res) => {
   }
 });
 
-// User registration endpoint
-app.post('/api/register', async (req, res) => {
-  try {
-    const { phone, name, pin } = req.body;
-
-    if (!phone || !name || !pin) {
-      return res.status(400).json({ error: 'Phone, name, and PIN are required' });
-    }
-
-    if (!phone.match(/^254[0-9]{9}$/)) {
-      return res.status(400).json({ error: 'Valid Kenyan phone number required (2547...)' });
-    }
-
-    if (!/^\d{4}$/.test(pin)) {
-      return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
-    }
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ phone });
-    if (existingUser) {
-      return res.status(400).json({ error: 'User already registered' });
-    }
-
-    const newUser = new User({
-      name,
-      phone,
-      pinHash: pin,
-      linked: true
-    });
-
-    await newUser.save();
-
-    res.json({
-      success: true,
-      message: 'Registration successful',
-      user: {
-        name: newUser.name,
-        phone: newUser.phone,
-        balance: newUser.balance
-      }
-    });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    memoryUsers: memoryStorage.users.size,
+    memorySessions: memoryStorage.sessions.size,
+    memoryTransactions: memoryStorage.transactions.length
   });
 });
-
-// WhatsApp bot pairing endpoint (for the pair.js integration)
-app.get('/pair', async (req, res) => {
-  const { number } = req.query;
-  
-  if (!number) {
-    return res.status(400).json({ error: 'Number parameter is required' });
-  }
-
-  // This would integrate with your pair.js system
-  // For now, return a mock response
-  res.json({
-    code: Math.floor(100000 + Math.random() * 900000).toString(),
-    status: 'success'
-  });
-});
-
-// Start WhatsApp bot (you can integrate your existing pair.js here)
-const startBot = require('./bot');
-startBot();
 
 // Error handling middleware
 app.use((error, req, res, next) => {
@@ -614,8 +660,8 @@ app.listen(PORT, '0.0.0.0', () => {
 ✅ User registration
 ✅ Money transfers
 ✅ Deposit/withdrawal (Mock)
+✅ MongoDB with memory fallback
 ✅ Transaction history
-✅ MongoDB integration
   `);
 });
 
