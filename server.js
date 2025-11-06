@@ -38,6 +38,14 @@ const connectDB = async () => {
       useUnifiedTopology: true,
     });
     console.log('✅ MongoDB connected successfully');
+    
+    // Drop the problematic index if it exists
+    try {
+      await mongoose.connection.collection('sessions').dropIndex('sessionId_1');
+      console.log('✅ Removed problematic sessionId index');
+    } catch (e) {
+      console.log('ℹ️ No problematic index to remove');
+    }
   } catch (error) {
     console.error('❌ MongoDB connection error:', error);
     setTimeout(connectDB, 5000);
@@ -139,8 +147,11 @@ app.get('/api/pair-code', async (req, res) => {
     const code = generateCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Delete any existing sessions for this phone
-    await Session.deleteMany({ phone: formattedPhone });
+    // Delete any existing sessions for this phone first
+    await Session.deleteMany({ 
+      phone: formattedPhone,
+      verified: false 
+    });
 
     // Create new session
     const session = new Session({
@@ -148,6 +159,7 @@ app.get('/api/pair-code', async (req, res) => {
       code: code,
       expiresAt: expiresAt
     });
+    
     await session.save();
 
     console.log(`Pairing code for ${formattedPhone}: ${code}`);
@@ -159,6 +171,13 @@ app.get('/api/pair-code', async (req, res) => {
     });
   } catch (error) {
     console.error('Pair code error:', error);
+    
+    // Handle specific MongoDB errors
+    if (error.code === 11000) {
+      // Duplicate key error - try again with a new code
+      return res.status(500).json({ error: 'Please try again' });
+    }
+    
     res.status(500).json({ error: 'Failed to generate pairing code' });
   }
 });
@@ -172,6 +191,8 @@ app.post('/api/verify-code', async (req, res) => {
     }
 
     const formattedPhone = formatPhone(phone);
+    
+    // Find valid session
     const session = await Session.findOne({ 
       phone: formattedPhone, 
       code: code,
@@ -182,12 +203,15 @@ app.post('/api/verify-code', async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired code' });
     }
 
+    // Mark as verified
     session.verified = true;
     await session.save();
 
+    // Check if user exists
     let user = await User.findOne({ phone: formattedPhone });
     const isNewUser = !user;
 
+    // Generate JWT token
     const token = jwt.sign(
       { phone: formattedPhone, userId: user?._id }, 
       process.env.JWT_SECRET, 
@@ -216,6 +240,7 @@ app.post('/api/register', async (req, res) => {
 
     const formattedPhone = formatPhone(phone);
     
+    // Verify session exists and is valid
     const session = await Session.findOne({ 
       phone: formattedPhone, 
       verified: true,
@@ -223,16 +248,24 @@ app.post('/api/register', async (req, res) => {
     });
 
     if (!session) {
-      return res.status(400).json({ error: 'Session expired or not verified' });
+      return res.status(400).json({ error: 'Session expired or not verified. Please start over.' });
     }
 
+    // Check if user already exists
     const existingUser = await User.findOne({ phone: formattedPhone });
     if (existingUser) {
       return res.status(400).json({ error: 'User already registered' });
     }
 
+    // Validate PIN
+    if (pin.length !== 4 || !/^\d+$/.test(pin)) {
+      return res.status(400).json({ error: 'PIN must be 4 digits only' });
+    }
+
+    // Hash PIN
     const pinHash = await bcrypt.hash(pin, 12);
 
+    // Create user
     const user = new User({
       name: name.trim(),
       phone: formattedPhone,
@@ -241,6 +274,9 @@ app.post('/api/register', async (req, res) => {
     });
 
     await user.save();
+
+    // Clean up session after successful registration
+    await Session.deleteOne({ _id: session._id });
 
     const token = jwt.sign(
       { phone: formattedPhone, userId: user._id }, 
@@ -256,6 +292,12 @@ app.post('/api/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
+    
+    // Handle duplicate user error
+    if (error.code === 11000) {
+      return res.status(400).json({ error: 'User already registered with this phone number' });
+    }
+    
     res.status(500).json({ error: 'Registration failed' });
   }
 });
@@ -500,6 +542,23 @@ app.post('/api/payhero/callback', async (req, res) => {
   } catch (error) {
     console.error('Callback error:', error);
     res.status(500).json({ error: 'Callback processing failed' });
+  }
+});
+
+// Clean up expired sessions (optional cleanup endpoint)
+app.delete('/api/cleanup-sessions', async (req, res) => {
+  try {
+    const result = await Session.deleteMany({ 
+      expiresAt: { $lt: new Date() } 
+    });
+    res.json({ 
+      success: true, 
+      deletedCount: result.deletedCount,
+      message: 'Cleaned up expired sessions'
+    });
+  } catch (error) {
+    console.error('Cleanup error:', error);
+    res.status(500).json({ error: 'Cleanup failed' });
   }
 });
 
