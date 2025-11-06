@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BeraPay - Login</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💸 BeraPay</h1>
+            <p>WhatsApp Money Wallet</p>
+        </div>
+        
+        <div class="login-form">
+            <h2>Welcome Back</h2>
+            <p>Enter your phone number to login</p>
+            
+            <form id="phoneForm">
+                <div class="input-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" placeholder="0712345678" required>
+                </div>
+                <button type="submit" class="btn-primary">Send Verification Code</button>
+            </form>
+
+            <div id="codeSection" class="hidden">
+                <div class="input-group">
+                    <label for="code">Verification Code</label>
+                    <input type="text" id="code" placeholder="Enter 6-digit code" maxlength="6" required>
+                </div>
+                <button onclick="verifyCode()" class="btn-primary">Verify Code</button>
+            </div>
+
+            <div id="registrationSection" class="hidden">
+                <h3>Complete Registration</h3>
+                <div class="input-group">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" placeholder="Enter your name" required>
+                </div>
+                <div class="input-group">
+                    <label for="pin">4-digit PIN</label>
+                    <input type="password" id="pin" placeholder="1234" maxlength="4" required>
+                </div>
+                <button onclick="completeRegistration()" class="btn-primary">Complete Registration</button>
+            </div>
+        </div>
+
+        <div class="features">
+            <h3>🌟 Features</h3>
+            <div class="feature-grid">
+                <div class="feature">
+                    <span>💰</span>
+                    <p>Send Money</p>
+                </div>
+                <div class="feature">
+                    <span>📥</span>
+                    <p>Instant Deposits</p>
+                </div>
+                <div class="feature">
+                    <span>📊</span>
+                    <p>Track Transactions</p>
+                </div>
+                <div class="feature">
+                    <span>🔒</span>
+                    <p>Secure & Safe</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPhone = '';
+
+        document.getElementById('phoneForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const phone = document.getElementById('phone').value;
+            currentPhone = phone;
+
+            const btn = e.target.querySelector('button');
+            btn.textContent = 'Sending...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`/api/send-code?phone=${phone}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('codeSection').classList.remove('hidden');
+                    showMessage('Verification code sent to your WhatsApp!', 'success');
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Failed to send code. Please try again.', 'error');
+            } finally {
+                btn.textContent = 'Send Verification Code';
+                btn.disabled = false;
+            }
+        });
+
+        async function verifyCode() {
+            const code = document.getElementById('code').value;
+            const btn = document.querySelector('#codeSection button');
+            
+            btn.textContent = 'Verifying...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/verify-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: currentPhone, code: code })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    localStorage.setItem('beraToken', data.token);
+                    
+                    if (data.isNewUser) {
+                        document.getElementById('registrationSection').classList.remove('hidden');
+                        showMessage('Please complete your registration', 'success');
+                    } else {
+                        window.location.href = '/dashboard';
+                    }
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Verification failed. Please try again.', 'error');
+            } finally {
+                btn.textContent = 'Verify Code';
+                btn.disabled = false;
+            }
+        }
+
+        async function completeRegistration() {
+            const name = document.getElementById('name').value;
+            const pin = document.getElementById('pin').value;
+            const btn = document.querySelector('#registrationSection button');
+
+            if (pin.length !== 4 || !/^\d+$/.test(pin)) {
+                showMessage('PIN must be 4 digits only!', 'error');
+                return;
+            }
+
+            btn.textContent = 'Registering...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        phone: currentPhone, 
+                        name: name, 
+                        pin: pin 
+                    })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    localStorage.setItem('beraToken', data.token);
+                    window.location.href = '/dashboard';
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Registration failed. Please try again.', 'error');
+            } finally {
+                btn.textContent = 'Complete Registration';
+                btn.disabled = false;
+            }
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            
+            document.querySelector('.login-form').prepend(messageDiv);
+            
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
