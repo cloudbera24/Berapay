@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BeraPay - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2E8B57;
+            --primary-dark: #276749;
+            --secondary: #4A5568;
+            --background: #F7FAFC;
+            --surface: #FFFFFF;
+            --text: #2D3748;
+            --text-light: #718096;
+            --border: #E2E8F0;
+            --success: #48BB78;
+            --warning: #ED8936;
+            --error: #F56565;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--background);
+            color: var(--text);
+        }
+
+        .header {
+            background: var(--primary);
+            color: white;
+            padding: 15px 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .user-email {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .main-content {
+            margin-top: 70px;
+            padding: 20px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .balance-card {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .balance-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .balance-amount {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .action-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.3s;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .section {
+            background: var(--surface);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .see-all {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .transaction-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .transaction-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .transaction-icon.deposit {
+            background: #E6FFFA;
+            color: var(--success);
+        }
+
+        .transaction-icon.withdrawal {
+            background: #FED7D7;
+            color: var(--error);
+        }
+
+        .transaction-details h4 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .transaction-details p {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .transaction-amount {
+            text-align: right;
+        }
+
+        .amount {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .amount.positive {
+            color: var(--success);
+        }
+
+        .amount.negative {
+            color: var(--error);
+        }
+
+        .date {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-top: 2px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border-radius: 15px;
+            padding: 25px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: var(--background);
+            color: var(--text);
+            border: 2px solid var(--border);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 10px;
+            color: white;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .notification.success {
+            background: var(--success);
+        }
+
+        .notification.error {
+            background: var(--error);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-light);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+    </style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-wallet"></i>
+                <span>BeraPay</span>
+            </div>
+            <div class="user-menu">
+                <div class="user-info">
+                    <div class="user-name" id="userName">Loading...</div>
+                    <div class="user-email" id="userEmail">...</div>
+                </div>
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Balance Card -->
+        <div class="balance-card">
+            <div class="balance-label">Available Balance</div>
+            <div class="balance-amount" id="balanceAmount">KES 0.00</div>
+            <div class="quick-actions">
+                <button class="action-btn" onclick="showDepositModal()">
+                    <i class="fas fa-arrow-down"></i>
+                    Deposit
+                </button>
+                <button class="action-btn" onclick="showWithdrawModal()">
+                    <i class="fas fa-arrow-up"></i>
+                    Withdraw
+                </button>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-title">Recent Transactions</div>
+                <a href="#" class="see-all" onclick="loadAllTransactions()">See All</a>
+            </div>
+            <div class="transaction-list" id="transactionList">
+                <div class="empty-state">
+                    <i class="fas fa-exchange-alt"></i>
+                    <p>No transactions yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deposit Modal -->
+    <div class="modal" id="depositModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Deposit Funds</div>
+                <button class="close-btn" onclick="hideDepositModal()">&times;</button>
+            </div>
+            <form id="depositForm">
+                <div class="form-group">
+                    <label class="form-label">Amount (KES)</label>
+                    <input type="number" class="form-control" id="depositAmount" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone Number</label>
+                    <input type="tel" class="form-control" id="depositPhone" placeholder="+254..." required>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-arrow-down"></i>
+                    Initiate Deposit
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Withdraw Modal -->
+    <div class="modal" id="withdrawModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Withdraw Funds</div>
+                <button class="close-btn" onclick="hideWithdrawModal()">&times;</button>
+            </div>
+            <form id="withdrawForm">
+                <div class="form-group">
+                    <label class="form-label">Amount (KES)</label>
+                    <input type="number" class="form-control" id="withdrawAmount" min="1" required>
+                    <small style="color: var(--text-light);">Available: <span id="availableBalance">KES 0.00</span></small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone Number</label>
+                    <input type="tel" class="form-control" id="withdrawPhone" placeholder="+254..." required>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-arrow-up"></i>
+                    Initiate Withdrawal
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.location.origin + '/api';
+        let authToken = localStorage.getItem('authToken');
+        let currentUser = null;
+
+        // Check authentication
+        if (!authToken) {
+            window.location.href = '/login';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboard();
+            initializeEventListeners();
+        });
+
+        function initializeEventListeners() {
+            document.getElementById('depositForm').addEventListener('submit', handleDeposit);
+            document.getElementById('withdrawForm').addEventListener('submit', handleWithdrawal);
+        }
+
+        async function apiRequest(endpoint, options = {}) {
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`,
+                    ...options.headers,
+                },
+                ...options,
+            };
+
+            try {
+                const response = await fetch(API_BASE_URL + endpoint, config);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'API request failed');
+                }
+
+                return data;
+            } catch (error) {
+                showNotification(error.message, 'error');
+                throw error;
+            }
+        }
+
+        async function loadDashboard() {
+            showLoading('Loading dashboard...');
+            try {
+                const [profile, balance, transactions] = await Promise.all([
+                    apiRequest('/users/profile'),
+                    apiRequest('/payments/balance'),
+                    apiRequest('/payments/transactions?limit=5')
+                ]);
+
+                currentUser = profile.user;
+                
+                // Update user info
+                document.getElementById('userName').textContent = currentUser.name;
+                document.getElementById('userEmail').textContent = currentUser.email;
+                
+                // Update balance
+                document.getElementById('balanceAmount').textContent = `KES ${balance.balance.toLocaleString()}`;
+                document.getElementById('availableBalance').textContent = `KES ${balance.balance.toLocaleString()}`;
+
+                // Update transactions
+                updateTransactionsList(transactions.transactions);
+
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                if (error.message.includes('Token') || error.message.includes('Authentication')) {
+                    logout();
+                }
+            }
+        }
+
+        function updateTransactionsList(transactions) {
+            const container = document.getElementById('transactionList');
+            
+            if (transactions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exchange-alt"></i>
+                        <p>No transactions yet</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = transactions.map(transaction => `
+                <div class="transaction-item">
+                    <div class="transaction-info">
+                        <div class="transaction-icon ${transaction.type}">
+                            <i class="fas fa-${transaction.type === 'deposit' ? 'arrow-down' : 'arrow-up'}"></i>
+                        </div>
+                        <div class="transaction-details">
+                            <h4>${transaction.description || transaction.type}</h4>
+                            <p>${transaction.reference}</p>
+                        </div>
+                    </div>
+                    <div class="transaction-amount">
+                        <div class="amount ${transaction.type === 'deposit' ? 'positive' : 'negative'}">
+                            ${transaction.type === 'deposit' ? '+' : '-'}KES ${transaction.amount.toLocaleString()}
+                        </div>
+                        <div class="date">
+                            ${new Date(transaction.createdAt).toLocaleDateString()}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function handleDeposit(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('depositAmount').value);
+            const phone = document.getElementById('depositPhone').value;
+
+            if (!amount || amount < 1) {
+                showNotification('Please enter a valid amount', 'error');
+                return;
+            }
+
+            showLoading('Initiating deposit...');
+            try {
+                const data = await apiRequest('/payments/stkpush', {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        amount, 
+                        phone, 
+                        description: 'BeraPay Deposit' 
+                    })
+                });
+
+                hideDepositModal();
+                showNotification('Payment prompt sent! Check your phone to complete.', 'success');
+                document.getElementById('depositForm').reset();
+                
+                // Reload dashboard after delay
+                setTimeout(loadDashboard, 3000);
+            } catch (error) {
+                // Error handled in apiRequest
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function handleWithdrawal(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('withdrawAmount').value);
+            const phone = document.getElementById('withdrawPhone').value;
+
+            if (!amount || amount < 1) {
+                showNotification('Please enter a valid amount', 'error');
+                return;
+            }
+
+            showLoading('Processing withdrawal...');
+            try {
+                const data = await apiRequest('/payments/withdraw', {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        amount, 
+                        phone, 
+                        description: 'BeraPay Withdrawal' 
+                    })
+                });
+
+                hideWithdrawModal();
+                showNotification('Withdrawal initiated successfully!', 'success');
+                document.getElementById('withdrawForm').reset();
+                
+                // Reload dashboard after delay
+                setTimeout(loadDashboard, 3000);
+            } catch (error) {
+                // Error handled in apiRequest
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function showDepositModal() {
+            document.getElementById('depositModal').style.display = 'flex';
+        }
+
+        function hideDepositModal() {
+            document.getElementById('depositModal').style.display = 'none';
+        }
+
+        function showWithdrawModal() {
+            document.getElementById('withdrawModal').style.display = 'flex';
+        }
+
+        function hideWithdrawModal() {
+            document.getElementById('withdrawModal').style.display = 'none';
+        }
+
+        function loadAllTransactions() {
+            // In a real app, this would load a transactions page
+            showNotification('Loading all transactions...', 'success');
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            window.location.href = '/login';
+        }
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}"></i>
+                ${message}
+            `;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+
+        function showLoading(message) {
+            document.getElementById('loading').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+                        </html>
