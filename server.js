@@ -29,9 +29,31 @@ const connectDB = async () => {
       useUnifiedTopology: true,
     });
     console.log('MongoDB connected successfully');
+    
+    // Create admin user if not exists
+    await createAdminUser();
   } catch (err) {
     console.error('MongoDB connection error:', err);
     process.exit(1);
+  }
+};
+
+const createAdminUser = async () => {
+  try {
+    const adminExists = await User.findOne({ email: 'admin@berapay.com' });
+    if (!adminExists) {
+      const adminUser = new User({
+        name: 'Admin User',
+        phone: '+254700000000',
+        email: 'admin@berapay.com',
+        password: 'admin123',
+        role: 'admin'
+      });
+      await adminUser.save();
+      console.log('Admin user created: admin@berapay.com / admin123');
+    }
+  } catch (error) {
+    console.error('Error creating admin user:', error);
   }
 };
 
@@ -1009,21 +1031,45 @@ app.get('/api/admin/merchants', adminMiddleware, getMerchants);
 // Webhook Routes
 app.post('/api/webhook/swift-callback', handleSwiftWebhook);
 
-// Frontend Routes
+// ==================== FIXED FRONTEND ROUTES ====================
+
+// Serve login page as default
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-app.get('/dashboard.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+// Serve specific pages with proper routing
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-app.get('/admin.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+app.get('/register', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'register.html'));
 });
 
-app.get('/merchant.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'merchant.html'));
+app.get('/dashboard', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (user.role === 'admin') {
+      res.sendFile(path.join(__dirname, 'public', 'admin-dashboard.html'));
+    } else {
+      res.sendFile(path.join(__dirname, 'public', 'user-dashboard.html'));
+    }
+  } catch (error) {
+    res.redirect('/login');
+  }
+});
+
+app.get('/user-dashboard', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'user-dashboard.html'));
+});
+
+app.get('/admin-dashboard', adminMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin-dashboard.html'));
+});
+
+app.get('/merchant-dashboard', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'merchant-dashboard.html'));
 });
 
 // API Info
@@ -1057,14 +1103,15 @@ app.use('/api/*', (req, res) => {
   res.status(404).json({ success: false, message: 'API endpoint not found' });
 });
 
+// 404 handler - redirect to login
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.redirect('/login');
 });
 
 // Start server
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`🚀 BeraPay server running on port ${PORT}`);
-  console.log(`📍 Frontend: http://localhost:${PORT}`);
-  console.log(`🔐 Admin Login: admin@berapay.com`);
+  console.log(`📍 Login: http://localhost:${PORT}`);
+  console.log(`🔐 Admin: admin@berapay.com / admin123`);
 });
