@@ -332,11 +332,19 @@
 
                 if (data.success) {
                     localStorage.setItem('authToken', data.token);
+                    // Also store user info if available
+                    if (data.user) {
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                    }
                     showNotification('Login successful!', 'success');
                     
-                    // Redirect to dashboard
+                    // Check if user is admin and redirect accordingly
                     setTimeout(() => {
-                        window.location.href = '/dashboard';
+                        if (data.user && data.user.role === 'admin') {
+                            window.location.href = '/admin-dashboard';
+                        } else {
+                            window.location.href = '/dashboard';
+                        }
                     }, 1000);
                 } else {
                     showNotification(data.message || 'Login failed', 'error');
@@ -357,12 +365,19 @@
                 });
 
                 if (response.ok) {
-                    window.location.href = '/dashboard';
+                    const data = await response.json();
+                    if (data.user && data.user.role === 'admin') {
+                        window.location.href = '/admin-dashboard';
+                    } else {
+                        window.location.href = '/dashboard';
+                    }
                 } else {
                     localStorage.removeItem('authToken');
+                    localStorage.removeItem('user');
                 }
             } catch (error) {
                 localStorage.removeItem('authToken');
+                localStorage.removeItem('user');
             }
         }
 
