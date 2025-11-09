@@ -349,6 +349,10 @@
 
                 if (data.success) {
                     localStorage.setItem('authToken', data.token);
+                    // Also store user info if available
+                    if (data.user) {
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                    }
                     showNotification('Account created successfully!', 'success');
                     
                     // Redirect to dashboard
@@ -388,4 +392,4 @@
         }
     </script>
 </body>
-</html>
+                </html>
