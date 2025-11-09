@@ -3,676 +3,287 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BeraPay - Wallet Dashboard</title>
+    <title>User Dashboard - BeraPay</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* Same CSS as index.html */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-color: #2563eb; --primary-dark: #1d4ed8; --secondary-color: #64748b;
+            --success-color: #10b981; --warning-color: #f59e0b; --error-color: #ef4444;
+            --background-color: #f8fafc; --surface-color: #ffffff; --text-primary: #1e293b;
+            --text-secondary: #64748b; --border-color: #e2e8f0; --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
         }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f6fa;
-            color: #333;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-
-        .logo {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        @media (max-width: 768px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .card {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .balance-card {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
-
-        .balance-amount {
-            font-size: 48px;
-            font-weight: bold;
-            margin: 20px 0;
-        }
-
-        .quick-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .btn {
-            padding: 15px;
-            border: none;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s;
-            text-align: center;
-            text-decoration: none;
-            color: inherit;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
-
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-
-        .btn-outline {
-            background: transparent;
-            border: 2px solid #667eea;
-            color: #667eea;
-        }
-
-        .transaction-list {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .transaction-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .transaction-item:last-child {
-            border-bottom: none;
-        }
-
-        .transaction-amount {
-            font-weight: bold;
-        }
-
-        .transaction-amount.positive {
-            color: #28a745;
-        }
-
-        .transaction-amount.negative {
-            color: #dc3545;
-        }
-
-        .transaction-details {
-            flex: 1;
-            margin-left: 15px;
-        }
-
-        .transaction-type {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .transaction-date {
-            color: #666;
-            font-size: 12px;
-        }
-
-        .transaction-status {
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .status-completed {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .status-pending {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .status-failed {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            width: 90%;
-            max-width: 500px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e1e5e9;
-            border-radius: 8px;
-            font-size: 16px;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .close {
-            float: right;
-            font-size: 24px;
-            cursor: pointer;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .success {
-            background: #d4edda;
-            color: #155724;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: var(--text-primary); background-color: var(--background-color); }
+        .navbar { background: var(--surface-color); box-shadow: var(--shadow); position: sticky; top: 0; z-index: 1000; }
+        .nav-container { max-width: 1200px; margin: 0 auto; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .nav-logo { display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; font-weight: bold; color: var(--primary-color); }
+        .btn-primary, .btn-secondary, .btn-logout { padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; transition: all 0.3s; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-primary { background: var(--primary-color); color: white; } .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary { background: transparent; color: var(--primary-color); border: 2px solid var(--primary-color); } .btn-secondary:hover { background: var(--primary-color); color: white; }
+        .btn-logout { background: var(--error-color); color: white; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { background: var(--surface-color); padding: 1.5rem; border-radius: 1rem; box-shadow: var(--shadow); display: flex; align-items: center; gap: 1rem; }
+        .form-card { background: var(--surface-color); padding: 2rem; border-radius: 1rem; box-shadow: var(--shadow); max-width: 500px; margin-bottom: 2rem; }
+        .form-group { margin-bottom: 1.5rem; } .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+        .form-group input { width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: 0.5rem; font-size: 1rem; }
+        .data-table { width: 100%; border-collapse: collapse; background: var(--surface-color); border-radius: 1rem; overflow: hidden; box-shadow: var(--shadow); }
+        .data-table th, .data-table td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .modal { display: none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); }
+        .modal-content { background-color: var(--surface-color); margin: 5% auto; padding: 2rem; border-radius: 1rem; width: 90%; max-width: 400px; position: relative; }
+        .loading-spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .notification { position: fixed; top: 20px; right: 20px; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: var(--shadow); z-index: 10000; animation: slideIn 0.3s ease-out; display: flex; align-items: center; gap: 0.5rem; }
+        .notification.success { background: var(--success-color); color: white; } .notification.error { background: var(--error-color); color: white; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <div class="header">
-        <div class="logo">BeraPay Wallet</div>
-        <p>Manage your money securely</p>
-    </div>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-wallet"></i>
+                <span>BeraPay User Dashboard</span>
+            </div>
+            <div class="nav-links">
+                <span id="userWelcome">Welcome, User</span>
+                <button class="btn-logout" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
 
     <div class="container">
-        <div id="loading" class="loading">
-            Loading your wallet...
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #dbeafe; color: var(--primary-color); width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                    <i class="fas fa-wallet"></i>
+                </div>
+                <div class="stat-info">
+                    <h4>Available Balance</h4>
+                    <span id="userBalance" style="font-size: 1.5rem; font-weight: bold;">KES 0.00</span>
+                </div>
+            </div>
         </div>
 
-        <div id="dashboard" class="hidden">
-            <div class="dashboard-grid">
-                <!-- Balance Card -->
-                <div class="card balance-card">
-                    <h3>Your Balance</h3>
-                    <div class="balance-amount" id="balanceAmount">KSh 0</div>
-                    <p>Account: <span id="userName">-</span></p>
-                    <p>Phone: <span id="userPhone">-</span></p>
-                </div>
-
-                <!-- Quick Actions -->
-                <div class="card">
-                    <h3>Quick Actions</h3>
-                    <div class="quick-actions">
-                        <button class="btn btn-primary" onclick="showDepositModal()">Deposit</button>
-                        <button class="btn btn-success" onclick="showSendModal()">Send Money</button>
-                        <button class="btn btn-outline" onclick="showWithdrawModal()">Withdraw</button>
-                        <button class="btn btn-outline" onclick="refreshData()">Refresh</button>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            <div class="form-card">
+                <h3>Deposit Funds</h3>
+                <form id="depositForm">
+                    <div class="form-group">
+                        <label for="depositAmount">Amount (KES)</label>
+                        <input type="number" id="depositAmount" min="1" max="1000000" required>
                     </div>
-                </div>
+                    <div class="form-group">
+                        <label for="depositPhone">Phone Number</label>
+                        <input type="tel" id="depositPhone" placeholder="+254..." required>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%;">
+                        <i class="fas fa-arrow-down"></i> Initiate Deposit
+                    </button>
+                </form>
             </div>
 
-            <!-- Recent Transactions -->
-            <div class="card">
-                <h3>Recent Transactions</h3>
-                <div id="transactionsList" class="transaction-list">
-                    <!-- Transactions will be loaded here -->
-                </div>
-                <button class="btn btn-outline" style="margin-top: 15px; width: 100%;" onclick="loadMoreTransactions()">
-                    Load More Transactions
-                </button>
+            <div class="form-card">
+                <h3>Withdraw Funds</h3>
+                <form id="withdrawForm">
+                    <div class="form-group">
+                        <label for="withdrawAmount">Amount (KES)</label>
+                        <input type="number" id="withdrawAmount" min="1" required>
+                        <small>Available: <span id="availableBalance">KES 0.00</span></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="withdrawPhone">Phone Number</label>
+                        <input type="tel" id="withdrawPhone" placeholder="+254..." required>
+                    </div>
+                    <button type="submit" class="btn-secondary" style="width: 100%;">
+                        <i class="fas fa-arrow-up"></i> Initiate Withdrawal
+                    </button>
+                </form>
             </div>
         </div>
 
-        <div id="notLinked" class="card hidden">
-            <h3>Account Not Linked</h3>
-            <p>Your WhatsApp account is not linked to BeraPay yet.</p>
-            <p>Please use the link code generator to connect your account.</p>
-            <a href="/" class="btn btn-primary">Generate Link Code</a>
-        </div>
-    </div>
-
-    <!-- Deposit Modal -->
-    <div id="depositModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('depositModal')">&times;</span>
-            <h3>Deposit Funds</h3>
-            <div id="depositMessage"></div>
-            <div class="form-group">
-                <label for="depositAmount">Amount (KSh)</label>
-                <input type="number" id="depositAmount" placeholder="Enter amount" min="10" max="70000">
+        <div>
+            <h3>Transaction History</h3>
+            <div style="background: var(--surface-color); border-radius: 1rem; padding: 1rem; margin-top: 1rem;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsTable">
+                        <tr><td colspan="5" style="text-align: center;">Loading transactions...</td></tr>
+                    </tbody>
+                </table>
             </div>
-            <div class="form-group">
-                <label for="depositDescription">Description (Optional)</label>
-                <input type="text" id="depositDescription" placeholder="e.g., Wallet top-up">
-            </div>
-            <button class="btn btn-primary" onclick="processDeposit()" style="width: 100%;">
-                Initiate Deposit
-            </button>
-        </div>
-    </div>
-
-    <!-- Send Money Modal -->
-    <div id="sendModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('sendModal')">&times;</span>
-            <h3>Send Money</h3>
-            <div id="sendMessage"></div>
-            <div class="form-group">
-                <label for="recipientPhone">Recipient Phone</label>
-                <input type="tel" id="recipientPhone" placeholder="254712345678" pattern="254[0-9]{9}">
-            </div>
-            <div class="form-group">
-                <label for="sendAmount">Amount (KSh)</label>
-                <input type="number" id="sendAmount" placeholder="Enter amount" min="1">
-            </div>
-            <div class="form-group">
-                <label for="sendPin">Your PIN</label>
-                <input type="password" id="sendPin" placeholder="Enter your 4-digit PIN" maxlength="4" pattern="[0-9]{4}">
-            </div>
-            <button class="btn btn-success" onclick="processSend()" style="width: 100%;">
-                Send Money
-            </button>
         </div>
     </div>
 
-    <!-- Withdraw Modal -->
-    <div id="withdrawModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('withdrawModal')">&times;</span>
-            <h3>Withdraw Funds</h3>
-            <div id="withdrawMessage"></div>
-            <div class="form-group">
-                <label for="withdrawAmount">Amount (KSh)</label>
-                <input type="number" id="withdrawAmount" placeholder="Enter amount" min="10">
-            </div>
-            <div class="form-group">
-                <label for="withdrawPin">Your PIN</label>
-                <input type="password" id="withdrawPin" placeholder="Enter your 4-digit PIN" maxlength="4" pattern="[0-9]{4}">
-            </div>
-            <button class="btn btn-primary" onclick="processWithdraw()" style="width: 100%;">
-                Withdraw
-            </button>
+    <!-- Loading Modal -->
+    <div id="loadingModal" class="modal">
+        <div class="modal-content" style="text-align: center; padding: 3rem;">
+            <div class="loading-spinner"></div>
+            <p id="loadingMessage">Processing...</p>
         </div>
     </div>
 
     <script>
-        let currentUser = null;
-        let currentPage = 1;
+        // Same JavaScript as index.html but simplified for user dashboard
+        const API_BASE_URL = window.location.origin + '/api';
+        let authToken = localStorage.getItem('authToken');
 
-        // Load wallet data on page load
-        window.addEventListener('load', async function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const phone = urlParams.get('phone');
-            
-            if (phone) {
-                await loadWalletData(phone);
-            } else {
-                // Prompt for phone number
-                const userPhone = prompt('Please enter your phone number (2547...):');
-                if (userPhone && userPhone.match(/^254[0-9]{9}$/)) {
-                    window.history.replaceState({}, '', `?phone=${userPhone}`);
-                    await loadWalletData(userPhone);
-                } else {
-                    document.getElementById('loading').innerHTML = 'Invalid phone number. Please refresh and try again.';
-                }
-            }
-        });
-
-        async function loadWalletData(phone) {
-            try {
-                const response = await fetch(`/api/wallet/${phone}`);
-                const data = await response.json();
-
-                if (data.user) {
-                    currentUser = data.user;
-                    displayWalletData(data);
-                    loadTransactions(phone);
-                } else {
-                    showNotLinked();
-                }
-            } catch (error) {
-                document.getElementById('loading').innerHTML = 'Error loading wallet data. Please try again.';
-                console.error('Error:', error);
-            }
-        }
-
-        function displayWalletData(data) {
-            document.getElementById('loading').classList.add('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
-            
-            document.getElementById('balanceAmount').textContent = `KSh ${data.user.balance.toLocaleString()}`;
-            document.getElementById('userName').textContent = data.user.name;
-            document.getElementById('userPhone').textContent = data.user.phone;
-        }
-
-        function showNotLinked() {
-            document.getElementById('loading').classList.add('hidden');
-            document.getElementById('notLinked').classList.remove('hidden');
-        }
-
-        async function loadTransactions(phone, page = 1) {
-            try {
-                const response = await fetch(`/api/wallet/transactions/${phone}?page=${page}&limit=10`);
-                const data = await response.json();
-
-                if (data.success) {
-                    displayTransactions(data.transactions, page === 1);
-                    currentPage = page;
-                }
-            } catch (error) {
-                console.error('Error loading transactions:', error);
-            }
-        }
-
-        function displayTransactions(transactions, clear = true) {
-            const container = document.getElementById('transactionsList');
-            
-            if (clear) {
-                container.innerHTML = '';
-            }
-
-            if (transactions.length === 0) {
-                container.innerHTML = '<div class="loading">No transactions found</div>';
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!authToken) {
+                window.location.href = '/';
                 return;
             }
+            loadUserData();
+            document.getElementById('depositForm').addEventListener('submit', handleDeposit);
+            document.getElementById('withdrawForm').addEventListener('submit', handleWithdrawal);
+        });
 
-            transactions.forEach(transaction => {
-                const isIncoming = transaction.receiver === currentUser.phone;
-                const amountClass = isIncoming ? 'positive' : 'negative';
-                const amountPrefix = isIncoming ? '+' : '-';
-                const typeText = getTransactionTypeText(transaction.type, isIncoming);
-
-                const transactionEl = document.createElement('div');
-                transactionEl.className = 'transaction-item';
-                transactionEl.innerHTML = `
-                    <div>
-                        <div class="transaction-type">${typeText}</div>
-                        <div class="transaction-date">${new Date(transaction.createdAt).toLocaleDateString()}</div>
-                        <div>${transaction.description || ''}</div>
-                    </div>
-                    <div>
-                        <div class="transaction-amount ${amountClass}">
-                            ${amountPrefix}KSh ${transaction.amount.toLocaleString()}
-                        </div>
-                        <div class="transaction-status status-${transaction.status}">
-                            ${transaction.status}
-                        </div>
-                    </div>
-                `;
-                container.appendChild(transactionEl);
-            });
-        }
-
-        function getTransactionTypeText(type, isIncoming) {
-            const types = {
-                'deposit': 'Deposit',
-                'withdrawal': 'Withdrawal',
-                'transfer': isIncoming ? 'Received' : 'Sent',
-                'payment': 'Payment'
+        async function apiRequest(endpoint, options = {}) {
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`,
+                    ...options.headers,
+                },
+                ...options,
             };
-            return types[type] || type;
-        }
-
-        function loadMoreTransactions() {
-            loadTransactions(currentUser.phone, currentPage + 1);
-        }
-
-        function showDepositModal() {
-            document.getElementById('depositAmount').value = '';
-            document.getElementById('depositDescription').value = '';
-            document.getElementById('depositMessage').innerHTML = '';
-            document.getElementById('depositModal').style.display = 'flex';
-        }
-
-        function showSendModal() {
-            document.getElementById('recipientPhone').value = '';
-            document.getElementById('sendAmount').value = '';
-            document.getElementById('sendPin').value = '';
-            document.getElementById('sendMessage').innerHTML = '';
-            document.getElementById('sendModal').style.display = 'flex';
-        }
-
-        function showWithdrawModal() {
-            document.getElementById('withdrawAmount').value = '';
-            document.getElementById('withdrawPin').value = '';
-            document.getElementById('withdrawMessage').innerHTML = '';
-            document.getElementById('withdrawModal').style.display = 'flex';
-        }
-
-        function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
-        }
-
-        async function processDeposit() {
-            const amount = document.getElementById('depositAmount').value;
-            const description = document.getElementById('depositDescription').value;
-
-            if (!amount || amount < 10) {
-                showMessage('depositMessage', 'Please enter a valid amount (minimum KSh 10)', 'error');
-                return;
-            }
 
             try {
-                const response = await fetch('/api/payhero/deposit', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        phone: currentUser.phone,
-                        amount: parseFloat(amount),
-                        description: description || 'BeraPay Deposit'
-                    })
-                });
-
+                const response = await fetch(API_BASE_URL + endpoint, config);
                 const data = await response.json();
-
-                if (data.success) {
-                    showMessage('depositMessage', 'Deposit initiated! Check your phone to complete the M-Pesa payment.', 'success');
-                    setTimeout(() => {
-                        closeModal('depositModal');
-                        refreshData();
-                    }, 3000);
-                } else {
-                    showMessage('depositMessage', data.error, 'error');
-                }
+                if (!response.ok) throw new Error(data.message || 'API request failed');
+                return data;
             } catch (error) {
-                showMessage('depositMessage', 'Deposit failed. Please try again.', 'error');
+                showError(error.message);
+                throw error;
             }
         }
 
-        async function processSend() {
-            const recipient = document.getElementById('recipientPhone').value;
-            const amount = document.getElementById('sendAmount').value;
-            const pin = document.getElementById('sendPin').value;
-
-            if (!recipient || !amount || !pin) {
-                showMessage('sendMessage', 'Please fill all fields', 'error');
-                return;
-            }
-
-            if (!recipient.match(/^254[0-9]{9}$/)) {
-                showMessage('sendMessage', 'Please enter a valid Kenyan phone number', 'error');
-                return;
-            }
-
-            if (pin.length !== 4) {
-                showMessage('sendMessage', 'PIN must be 4 digits', 'error');
-                return;
-            }
-
+        async function loadUserData() {
+            showLoading('Loading...');
             try {
-                const response = await fetch('/api/wallet/send', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        fromPhone: currentUser.phone,
-                        toPhone: recipient,
-                        amount: parseFloat(amount),
-                        pin: pin
-                    })
-                });
+                const [profile, balance, transactions] = await Promise.all([
+                    apiRequest('/users/profile'),
+                    apiRequest('/payments/balance'),
+                    apiRequest('/payments/transactions?limit=20')
+                ]);
 
-                const data = await response.json();
+                document.getElementById('userWelcome').textContent = `Welcome, ${profile.user.name}`;
+                document.getElementById('userBalance').textContent = `KES ${balance.balance.toLocaleString()}`;
+                document.getElementById('availableBalance').textContent = `KES ${balance.balance.toLocaleString()}`;
 
-                if (data.success) {
-                    showMessage('sendMessage', `Successfully sent KSh ${amount} to ${recipient}`, 'success');
-                    setTimeout(() => {
-                        closeModal('sendModal');
-                        refreshData();
-                    }, 2000);
+                const tbody = document.getElementById('transactionsTable');
+                if (transactions.transactions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No transactions yet</td></tr>';
                 } else {
-                    showMessage('sendMessage', data.error, 'error');
+                    tbody.innerHTML = transactions.transactions.map(t => `
+                        <tr>
+                            <td>${new Date(t.createdAt).toLocaleDateString()}</td>
+                            <td>${t.type}</td>
+                            <td>KES ${t.amount.toLocaleString()}</td>
+                            <td>${t.status}</td>
+                            <td><small>${t.reference}</small></td>
+                        </tr>
+                    `).join('');
                 }
+
+                hideLoading();
             } catch (error) {
-                showMessage('sendMessage', 'Send failed. Please try again.', 'error');
+                hideLoading();
+                if (error.message.includes('Token')) logout();
             }
         }
 
-        async function processWithdraw() {
-            const amount = document.getElementById('withdrawAmount').value;
-            const pin = document.getElementById('withdrawPin').value;
+        async function handleDeposit(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('depositAmount').value);
+            const phone = document.getElementById('depositPhone').value;
 
-            if (!amount || !pin) {
-                showMessage('withdrawMessage', 'Please fill all fields', 'error');
+            if (!amount || amount < 1) {
+                showError('Please enter a valid amount');
                 return;
             }
 
-            if (amount < 10) {
-                showMessage('withdrawMessage', 'Minimum withdrawal is KSh 10', 'error');
-                return;
-            }
-
-            if (pin.length !== 4) {
-                showMessage('withdrawMessage', 'PIN must be 4 digits', 'error');
-                return;
-            }
-
+            showLoading('Initiating deposit...');
             try {
-                const response = await fetch('/api/payhero/withdraw', {
+                await apiRequest('/payments/stkpush', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        phone: currentUser.phone,
-                        amount: parseFloat(amount),
-                        pin: pin
-                    })
+                    body: JSON.stringify({ amount, phone, description: 'BeraPay Deposit' })
                 });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    showMessage('withdrawMessage', 'Withdrawal initiated! Funds will be sent to your M-Pesa.', 'success');
-                    setTimeout(() => {
-                        closeModal('withdrawModal');
-                        refreshData();
-                    }, 2000);
-                } else {
-                    showMessage('withdrawMessage', data.error, 'error');
-                }
+                showSuccess('Payment prompt sent! Check your phone.');
+                document.getElementById('depositForm').reset();
+                setTimeout(loadUserData, 2000);
             } catch (error) {
-                showMessage('withdrawMessage', 'Withdrawal failed. Please try again.', 'error');
+                // Error handled in apiRequest
+            } finally {
+                hideLoading();
             }
         }
 
-        function showMessage(elementId, message, type) {
-            const element = document.getElementById(elementId);
-            element.innerHTML = `<div class="${type}">${message}</div>`;
+        async function handleWithdrawal(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('withdrawAmount').value);
+            const phone = document.getElementById('withdrawPhone').value;
+
+            if (!amount || amount < 1) {
+                showError('Please enter a valid amount');
+                return;
+            }
+
+            showLoading('Processing withdrawal...');
+            try {
+                await apiRequest('/payments/withdraw', {
+                    method: 'POST',
+                    body: JSON.stringify({ amount, phone })
+                });
+                showSuccess('Withdrawal initiated successfully!');
+                document.getElementById('withdrawForm').reset();
+                setTimeout(loadUserData, 2000);
+            } catch (error) {
+                // Error handled in apiRequest
+            } finally {
+                hideLoading();
+            }
         }
 
-        async function refreshData() {
-            document.getElementById('loading').classList.remove('hidden');
-            document.getElementById('dashboard').classList.add('hidden');
-            await loadWalletData(currentUser.phone);
+        function logout() {
+            localStorage.removeItem('authToken');
+            window.location.href = '/';
         }
 
-        // Close modal when clicking outside
-        window.addEventListener('click', function(event) {
-            const modals = document.querySelectorAll('.modal');
-            modals.forEach(modal => {
-                if (event.target === modal) {
-                    modal.style.display = 'none';
-                }
-            });
-        });
+        function showError(message) {
+            showNotification(message, 'error');
+        }
+
+        function showSuccess(message) {
+            showNotification(message, 'success');
+        }
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `<i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i><span>${message}</span>`;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 5000);
+        }
+
+        function showLoading(message) {
+            document.getElementById('loadingMessage').textContent = message;
+            document.getElementById('loadingModal').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingModal').style.display = 'none';
+        }
     </script>
 </body>
-                            </html>
+</html>
