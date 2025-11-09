@@ -1,36 +1,63 @@
 {
-  "name": "berapay-wallet",
+  "name": "berapay",
   "version": "1.0.0",
-  "description": "BeraPay Wallet System with WhatsApp Integration",
+  "description": "Complete Payment Gateway & API Platform with Swift Wallet Integration",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "dependencies": {
-    "@whiskeysockets/baileys": "npm:baileys-mod",
-    "express": "^4.18.2",
-    "mongoose": "^7.5.0",
-    "body-parser": "^1.20.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.0.0",
-    "megajs": "^1.1.0",
-    "fs-extra": "^11.2.0",
-    "axios": "^1.2.5",
-    "qrcode": "^1.5.3",
-    "moment-timezone": "^0.6.0",
-    "pino": "^9.7.0",
-    "cheerio": "^1.0.0",
-    "jimp": "^0.22.12"
+    "dev": "nodemon server.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "setup": "node -e \"console.log('BeraPay Setup: Make sure to set MONGODB_URI and SWIFT_API_KEY in .env file')\""
   },
   "keywords": [
-    "whatsapp",
-    "wallet",
-    "baileys",
+    "payment-gateway",
+    "fintech",
+    "mobile-money",
+    "api-platform",
+    "swift-wallet",
     "mpesa",
-    "payhero"
+    "paybill",
+    "kenya",
+    "africa"
   ],
-  "author": "BeraPay Team",
-  "license": "MIT"
+  "author": "BeraPay Team <dev@berapay.com>",
+  "contributors": [
+    "BeraPay Development Team"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cloudbera24/Berapay.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cloudbera24/Berapay/issues"
+  },
+  "homepage": "https://berapay.com",
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^7.5.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "axios": "^1.5.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "files": [
+    "server.js",
+    "public/",
+    ".env.example",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }
