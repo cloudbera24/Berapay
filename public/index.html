@@ -1,614 +1,1046 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>BeraPay Wallet</title>
-  <link rel="icon" type="image/x-icon" href="https://i.ibb.co/hRVcfQGK/vision-v.jpg">
-  <meta property="og:image" content="https://i.ibb.co/BH4yttvK/vision-v.jpg">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --primary: linear-gradient(135deg, #00D4FF, #0066CC);
-      --glass: rgba(255, 255, 255, 0.15);
-      --glass-border: rgba(255, 255, 255, 0.2);
-      --text: #ffffff;
-      --muted: #708090;
-      --highlight: #00D4FF;
-      --radius: 16px;
-      --blur: 16px;
-      --transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-      --glow: 0 0 15px rgba(0, 212, 255, 0.3);
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BeraPay - Complete Payment Gateway</title>
+    <style>
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary-color: #64748b;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --background-color: #f8fafc;
+            --surface-color: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
 
-    body {
-      font-family: 'Poppins', sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      position: relative;
-      overflow-x: hidden;
-      color: var(--text);
-      padding: 80px 20px 120px;
-      background: url('https://i.ibb.co/Z6xVjrhF/vision-v.jpg') no-repeat center center fixed;
-      background-size: cover;
-    }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background-color: var(--background-color);
+        }
 
-    /* Liquid glass morphism effect for containers */
-    .glass {
-      background: var(--glass);
-      backdrop-filter: blur(var(--blur));
-      border-radius: var(--radius);
-      border: 1px solid var(--glass-border);
-      box-shadow: 
-        0 10px 35px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.1);
-      position: relative;
-      overflow: hidden;
-    }
+        /* Navigation */
+        .navbar {
+            background: var(--surface-color);
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
 
-    /* Liquid glass shine effect */
-    .glass::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.1),
-        transparent
-      );
-      transition: left 0.7s ease;
-    }
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-    .glass:hover::before {
-      left: 100%;
-    }
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
 
-    /* Loading overlay */
-    .loading-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-      backdrop-filter: blur(10px);
-      transition: opacity 0.5s ease;
-    }
-    
-    .loading-spinner {
-      width: 70px;
-      height: 70px;
-      border: 5px solid rgba(255, 255, 255, 0.3);
-      border-radius: 50%;
-      border-top-color: var(--highlight);
-      animation: spin 1s ease-in-out infinite;
-    }
-    
-    .loading-text {
-      margin-top: 20px;
-      font-size: 18px;
-      color: var(--text);
-      text-align: center;
-    }
-    
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
 
-    /* card */
-    .wrap {
-      position: relative;
-      z-index: 2;
-      width: 380px;
-      max-width: 95%;
-      margin-bottom: 80px;
-    }
-    
-    .box {
-      position: relative;
-      padding: 110px 22px 26px; /* Increased top padding for avatar spacing */
-      text-align: center;
-      transition: transform .5s ease, opacity .45s ease;
-    }
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: color 0.3s;
+        }
 
-    /* avatar image overlapping top with proper spacing */
-    .avatar {
-      position: absolute;
-      top: -70px; /* Increased distance from top */
-      left: 50%;
-      transform: translateX(-50%);
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      overflow: hidden;
-      border: 4px solid rgba(255, 255, 255, 0.2);
-      box-shadow: 0 8px 30px rgba(255, 40, 40, 0.22);
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      z-index: 3;
-    }
-    
-    .avatar img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
+        .nav-links a:hover {
+            color: var(--primary-color);
+        }
 
-    h3 {
-      color: #fff;
-      margin-top: 6px;
-      font-weight: 700;
-      font-size: 1.8rem;
-      text-shadow: 0 0 12px rgba(0, 212, 255, 0.5);
-    }
-    
-    h6 {
-      color: #ccc;
-      font-weight: 400;
-      margin: 6px 0;
-      font-size: 1rem;
-    }
+        .mobile-menu {
+            display: none;
+        }
 
-    .input-container {
-      display: flex;
-      flex-direction: column;
-      margin-top: 20px;
-      gap: 15px;
-    }
-    
-    .input-container input {
-      padding: 16px;
-      border-radius: 12px;
-      border: none;
-      outline: none;
-      background: rgba(0, 0, 0, 0.3);
-      color: #fff;
-      font-size: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      transition: all 0.3s ease;
-      text-align: center;
-    }
-    
-    .input-container input:focus {
-      box-shadow: 0 0 16px rgba(0, 212, 255, 0.3);
-      border-color: var(--highlight);
-    }
-    
-    .input-container button {
-      padding: 16px;
-      border-radius: 12px;
-      border: none;
-      background: var(--primary);
-      color: #fff;
-      font-weight: 600;
-      font-size: 16px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
-      width: 100%;
-    }
-    
-    .input-container button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
-    }
-    
-    .input-container button:active {
-      transform: translateY(1px);
-    }
-    
-    .info {
-      margin-top: 14px;
-      color: #ffdede;
-      font-weight: 600;
-      text-shadow: 0 0 6px rgba(255, 120, 120, 0.06);
-      min-height: 28px;
-    }
+        /* Buttons */
+        .btn-primary, .btn-secondary, .btn-success, .btn-warning, .btn-login, .btn-register, .btn-logout {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
 
-    /* Code display styling */
-    .code-display {
-      background: rgba(0, 0, 0, 0.3);
-      border: 2px dashed var(--highlight);
-      border-radius: 12px;
-      padding: 20px;
-      margin: 20px 0;
-      font-size: 32px;
-      font-weight: bold;
-      color: #fff;
-      letter-spacing: 5px;
-      text-align: center;
-      backdrop-filter: blur(10px);
-    }
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
 
-    .instructions {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 20px;
-      margin: 20px 0;
-      text-align: left;
-      backdrop-filter: blur(10px);
-    }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
 
-    .instructions ol {
-      margin-left: 20px;
-    }
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
 
-    .instructions li {
-      margin-bottom: 10px;
-      color: #ccc;
-    }
+        .btn-secondary:hover {
+            background: var(--primary-color);
+            color: white;
+        }
 
-    .countdown {
-      color: var(--highlight);
-      font-weight: bold;
-      font-size: 18px;
-      margin: 10px 0;
-    }
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
 
-    /* Footer styling */
-    .footer {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 1rem 2rem;
-      background: var(--glass);
-      backdrop-filter: blur(var(--blur));
-      z-index: 100;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .social-icons {
-      display: flex;
-      gap: 1.2rem;
-    }
-    
-    .social-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text);
-      text-decoration: none;
-      font-size: 20px;
-      transition: all 0.3s ease;
-      width: 45px;
-      height: 45px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(5px);
-      -webkit-backdrop-filter: blur(5px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    
-    .social-icon:hover {
-      background: rgba(255, 255, 255, 0.1);
-      transform: translateY(-3px);
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-      color: var(--highlight);
-    }
+        .btn-warning {
+            background: var(--warning-color);
+            color: white;
+        }
 
-    /* Success and error messages */
-    .success {
-      color: #90EE90;
-      font-weight: 600;
-    }
+        .btn-login {
+            background: transparent;
+            color: var(--primary-color);
+        }
 
-    .error {
-      color: #FF6B6B;
-      font-weight: 600;
-    }
+        .btn-register {
+            background: var(--primary-color);
+            color: white;
+        }
 
-    .hidden {
-      display: none;
-    }
+        .btn-logout {
+            background: var(--error-color);
+            color: white;
+        }
 
-    /* small screens */
-    @media (max-width:768px){
-      .avatar {
-        width: 96px;
-        height: 96px;
-        top: -58px; /* Adjusted for smaller avatar */
-      }
-      
-      .box {
-        padding-top: 88px; /* Adjusted padding for smaller avatar */
-      }
-      
-      .social-icons {
-        gap: 0.8rem;
-      }
-      
-      .social-icon {
-        width: 40px;
-        height: 40px;
-        font-size: 18px;
-      }
+        .btn-large {
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+        }
 
-      .code-display {
-        font-size: 24px;
-        padding: 15px;
-      }
-    }
-    
-    @media (max-width:480px){
-      .social-icons {
-        gap: 0.5rem;
-      }
-      
-      .social-icon {
-        width: 35px;
-        height: 35px;
-        font-size: 16px;
-      }
-      
-      .wrap {
-        margin-bottom: 120px;
-      }
+        .btn-full {
+            width: 100%;
+            justify-content: center;
+        }
 
-      .code-display {
-        font-size: 20px;
-        padding: 12px;
-      }
-    }
-  </style>
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Dashboard Layout */
+        .dashboard-container {
+            display: flex;
+            min-height: calc(100vh - 80px);
+        }
+
+        .sidebar {
+            width: 250px;
+            background: var(--surface-color);
+            box-shadow: var(--shadow);
+            padding: 2rem 0;
+        }
+
+        .sidebar-menu {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 2rem;
+            text-decoration: none;
+            color: var(--text-secondary);
+            transition: all 0.3s;
+            border-left: 4px solid transparent;
+        }
+
+        .menu-item:hover, .menu-item.active {
+            background: var(--background-color);
+            color: var(--primary-color);
+            border-left-color: var(--primary-color);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            background: var(--background-color);
+        }
+
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--surface-color);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .stat-icon.primary { background: #dbeafe; color: var(--primary-color); }
+        .stat-icon.success { background: #d1fae5; color: var(--success-color); }
+        .stat-icon.warning { background: #fef3c7; color: var(--warning-color); }
+        .stat-icon.info { background: #e0f2fe; color: #0ea5e9; }
+
+        .stat-info h4 {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-info span {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface-color);
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .data-table th, .data-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table th {
+            background: var(--background-color);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Forms */
+        .form-card {
+            background: var(--surface-color);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: var(--shadow);
+            max-width: 500px;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: var(--surface-color);
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 400px;
+            position: relative;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .close {
+            position: absolute;
+            right: 1rem;
+            top: 1rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        /* Loading */
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: var(--shadow-lg);
+            z-index: 10000;
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .notification.success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .notification.error {
+            background: var(--error-color);
+            color: white;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .mobile-menu { display: block; }
+            .dashboard-container { flex-direction: column; }
+            .sidebar { width: 100%; }
+            .container { padding: 0 1rem; }
+            .main-content { padding: 1rem; }
+        }
+    </style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-  <!-- Loading Overlay -->
-  <div class="loading-overlay" id="loadingOverlay">
-    <div class="loading-spinner"></div>
-    <div class="loading-text">Initializing BeraPay...</div>
-  </div>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-wallet"></i>
+                <span>BeraPay</span>
+            </div>
+            <div class="nav-links">
+                <a href="#" onclick="showSection('dashboard')">Dashboard</a>
+                <a href="#" onclick="showSection('payments')">Payments</a>
+                <a href="#" onclick="showSection('merchant')">Merchant</a>
+                <a href="#" onclick="showSection('admin')">Admin</a>
+                <button class="btn-logout" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
 
-  <div class="wrap">
-    <div class="box glass" id="mainBox">
-      <!-- avatar (image overlaps top of card with proper spacing) -->
-      <div class="avatar">
-        <img src="https://i.ibb.co/fY1HYkBT/vision-v.jpg" alt="BeraPay Logo">
-      </div>
-
-      <h3>BeraPay Wallet</h3>
-      <h6>Powered by PayHero & M-Pesa</h6>
-      <h6>📱 Enter your number with country code</h6>
-
-      <!-- Step 1: Phone Input -->
-      <div class="input-container" id="step1">
-        <input id="number" type="tel" placeholder="254712345678" inputmode="numeric" pattern="[0-9]*" />
-        <button id="submit">Generate Link Code</button>
-      </div>
-
-      <!-- Step 2: Code Display -->
-      <div class="hidden" id="step2">
-        <div class="code-display" id="codeDisplay"></div>
-        <div class="countdown" id="countdown">5:00</div>
-        
-        <div class="instructions">
-          <h6 style="color: var(--highlight); margin-bottom: 10px;">How to link your WhatsApp:</h6>
-          <ol>
-            <li>Open WhatsApp and find BeraPay bot</li>
-            <li>Send this message: <code>.link <span id="codeExample"></span></code></li>
-            <li>Your wallet will be linked automatically</li>
-            <li>Type <code>.menu</code> to see all commands</li>
-          </ol>
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <div class="sidebar-menu">
+                <a href="#" class="menu-item active" onclick="showSection('dashboard')">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="menu-item" onclick="showSection('payments')">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Payments</span>
+                </a>
+                <a href="#" class="menu-item" onclick="showSection('merchant')">
+                    <i class="fas fa-store"></i>
+                    <span>Merchant API</span>
+                </a>
+                <a href="#" class="menu-item" onclick="showSection('admin')">
+                    <i class="fas fa-cog"></i>
+                    <span>Admin Panel</span>
+                </a>
+            </div>
         </div>
 
-        <button onclick="resetProcess()" style="background: var(--primary); margin-top: 15px;">
-          Generate New Code
-        </button>
-      </div>
+        <div class="main-content">
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="content-section active">
+                <h2>Dashboard Overview</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon primary">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h4>Balance</h4>
+                            <span id="userBalance">KES 0.00</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h4>Total Deposits</h4>
+                            <span id="totalDeposits">KES 0.00</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon warning">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h4>Total Withdrawals</h4>
+                            <span id="totalWithdrawals">KES 0.00</span>
+                        </div>
+                    </div>
+                </div>
 
-      <div class="info" id="pair"></div>
+                <div class="form-card">
+                    <h3>Quick Actions</h3>
+                    <div style="display: grid; gap: 1rem; margin-top: 1rem;">
+                        <button class="btn-primary" onclick="showSection('payments')">
+                            <i class="fas fa-arrow-down"></i> Deposit Funds
+                        </button>
+                        <button class="btn-warning" onclick="showSection('payments')">
+                            <i class="fas fa-arrow-up"></i> Withdraw Funds
+                        </button>
+                        <button class="btn-success" onclick="showSection('merchant')">
+                            <i class="fas fa-store"></i> Merchant Setup
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payments Section -->
+            <div id="payments" class="content-section">
+                <h2>Payment Operations</h2>
+                <div class="stats-grid">
+                    <div class="form-card">
+                        <h3>Deposit Funds</h3>
+                        <form id="depositForm">
+                            <div class="form-group">
+                                <label for="depositAmount">Amount (KES)</label>
+                                <input type="number" id="depositAmount" min="1" max="1000000" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="depositPhone">Phone Number</label>
+                                <input type="tel" id="depositPhone" placeholder="+254..." required>
+                            </div>
+                            <div class="form-group">
+                                <label for="depositDescription">Description</label>
+                                <input type="text" id="depositDescription" placeholder="Payment for...">
+                            </div>
+                            <button type="submit" class="btn-primary btn-full">
+                                <i class="fas fa-arrow-down"></i> Initiate Deposit
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="form-card">
+                        <h3>Withdraw Funds</h3>
+                        <form id="withdrawForm">
+                            <div class="form-group">
+                                <label for="withdrawAmount">Amount (KES)</label>
+                                <input type="number" id="withdrawAmount" min="1" required>
+                                <small>Available: <span id="availableBalance">KES 0.00</span></small>
+                            </div>
+                            <div class="form-group">
+                                <label for="withdrawPhone">Phone Number</label>
+                                <input type="tel" id="withdrawPhone" placeholder="+254..." required>
+                            </div>
+                            <button type="submit" class="btn-warning btn-full">
+                                <i class="fas fa-arrow-up"></i> Initiate Withdrawal
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem;">
+                    <h3>Transaction History</h3>
+                    <div style="background: var(--surface-color); border-radius: 1rem; padding: 1rem;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Reference</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactionsTable">
+                                <!-- Transactions will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Merchant Section -->
+            <div id="merchant" class="content-section">
+                <h2>Merchant API Platform</h2>
+                <div class="stats-grid">
+                    <div class="form-card">
+                        <h3>Merchant Registration</h3>
+                        <form id="merchantRegisterForm">
+                            <div class="form-group">
+                                <label for="merchantCompany">Company Name</label>
+                                <input type="text" id="merchantCompany" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="merchantEmail">Email</label>
+                                <input type="email" id="merchantEmail" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="merchantWebhook">Webhook URL (Optional)</label>
+                                <input type="url" id="merchantWebhook">
+                            </div>
+                            <button type="submit" class="btn-primary btn-full">
+                                <i class="fas fa-user-plus"></i> Register Merchant
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="form-card">
+                        <h3>PayBill Setup</h3>
+                        <form id="paybillSetupForm">
+                            <div class="form-group">
+                                <label for="paybillNumber">PayBill Number</label>
+                                <input type="text" id="paybillNumber" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="paybillAccount">Account Number</label>
+                                <input type="text" id="paybillAccount" required>
+                            </div>
+                            <button type="submit" class="btn-success btn-full">
+                                <i class="fas fa-cog"></i> Setup PayBill
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem;">
+                    <h3>API Credentials</h3>
+                    <div id="apiCredentials" style="background: var(--surface-color); padding: 1rem; border-radius: 1rem;">
+                        <p>Register a merchant to get API credentials</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Section -->
+            <div id="admin" class="content-section">
+                <h2>Admin Dashboard</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon primary">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h4>Total Users</h4>
+                            <span id="adminTotalUsers">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <i class="fas fa-store"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h4>Total Merchants</h4>
+                            <span id="adminTotalMerchants">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon warning">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h4>Total Commission</h4>
+                            <span id="adminTotalCommission">KES 0.00</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon info">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h4>Platform Earnings</h4>
+                            <span id="adminPlatformEarnings">KES 0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem;">
+                    <h3>Recent Transactions</h3>
+                    <div style="background: var(--surface-color); border-radius: 1rem; padding: 1rem;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>User/Merchant</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminTransactionsTable">
+                                <!-- Admin transactions will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <!-- Footer -->
-  <div class="footer">
-    <div class="social-icons">
-      <a href="https://youtube.com/@wemacomic?si=VoLQFISuUFRtR75b" target="_blank" class="social-icon" title="YouTube">
-        <i class="fab fa-youtube"></i>
-      </a>
-      <a href="https://whatsapp.com/channel/0029Vajvy2kEwEjwAKP4SI0x" target="_blank" class="social-icon" title="Channel">
-        <i class="fab fa-whatsapp"></i>
-      </a>
-      <a href="https://chat.whatsapp.com/GBz10zMKECuEKUlmfNsglx?mode=ems_copy_c" target="_blank" class="social-icon" title="Group">
-        <i class="fas fa-users"></i>
-      </a>
-      <a href="https://wa.me/254790375710" target="_blank" class="social-icon" title="Contact">
-        <i class="fas fa-phone-alt"></i>
-      </a>
-      <a href="/dashboard" target="_blank" class="social-icon" title="Dashboard">
-        <i class="fas fa-tachometer-alt"></i>
-      </a>
+    <!-- Loading Modal -->
+    <div id="loadingModal" class="modal">
+        <div class="modal-content" style="text-align: center; padding: 3rem;">
+            <div class="loading-spinner"></div>
+            <p id="loadingMessage">Processing...</p>
+        </div>
     </div>
-  </div>
 
-  <script>
-    // Show loading overlay for 2 seconds when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-      const loadingOverlay = document.getElementById('loadingOverlay');
-      
-      // Show the loading overlay
-      loadingOverlay.style.display = 'flex';
-      
-      // Hide after 2 seconds
-      setTimeout(function() {
-        loadingOverlay.style.opacity = '0';
-        setTimeout(function() {
-          loadingOverlay.style.display = 'none';
-        }, 500);
-      }, 2000);
-    });
+    <script>
+        // API Configuration
+        const API_BASE_URL = window.location.origin + '/api';
+        let authToken = localStorage.getItem('authToken');
+        let currentUser = null;
 
-    // Global variables
-    let countdownInterval;
-
-    // Generate code function
-    async function generateCode() {
-      const numberInput = document.getElementById('number');
-      const pair = document.getElementById('pair');
-      const number = numberInput.value.replace(/[^0-9]/g, '');
-
-      // Validate phone number
-      if (!number || number.length < 12 || !number.startsWith('254')) {
-        pair.innerHTML = '<span class="error">Invalid Kenyan number (2547...)</span>';
-        numberInput.style.background = 'rgba(255, 0, 0, 0.1)';
-        return;
-      }
-
-      // Show loading state
-      numberInput.style.background = 'rgba(0, 255, 0, 0.1)';
-      pair.innerHTML = '<span style="color:#ffdede;font-weight:700">Generating code...</span>';
-
-      try {
-        // Call the backend API to generate code
-        const response = await fetch('/generate-code', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ phone: number })
+        // Check authentication on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!authToken) {
+                window.location.href = '/';
+                return;
+            }
+            loadDashboard();
+            initializeEventListeners();
         });
 
-        const data = await response.json();
-
-        if (data.success) {
-          showCode(data.code);
-          startCountdown(5 * 60); // 5 minutes countdown
-        } else {
-          throw new Error(data.error || 'Failed to generate code');
+        // Initialize event listeners
+        function initializeEventListeners() {
+            // Deposit form
+            document.getElementById('depositForm').addEventListener('submit', handleDeposit);
+            // Withdraw form
+            document.getElementById('withdrawForm').addEventListener('submit', handleWithdrawal);
+            // Merchant registration
+            document.getElementById('merchantRegisterForm').addEventListener('submit', handleMerchantRegister);
+            // PayBill setup
+            document.getElementById('paybillSetupForm').addEventListener('submit', handlePaybillSetup);
         }
-      } catch (error) {
-        console.error('Error generating code:', error);
-        pair.innerHTML = `<span class="error">Error: ${error.message}</span>`;
-        numberInput.style.background = 'rgba(255, 0, 0, 0.1)';
-      }
-    }
 
-    // Show generated code
-    function showCode(code) {
-      const step1 = document.getElementById('step1');
-      const step2 = document.getElementById('step2');
-      const codeDisplay = document.getElementById('codeDisplay');
-      const codeExample = document.getElementById('codeExample');
-      const pair = document.getElementById('pair');
+        // API request helper
+        async function apiRequest(endpoint, options = {}) {
+            const url = API_BASE_URL + endpoint;
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`,
+                    ...options.headers,
+                },
+                ...options,
+            };
 
-      // Hide step 1, show step 2
-      step1.classList.add('hidden');
-      step2.classList.remove('hidden');
+            try {
+                const response = await fetch(url, config);
+                const data = await response.json();
 
-      // Display the code
-      codeDisplay.textContent = code;
-      codeExample.textContent = code;
+                if (!response.ok) {
+                    throw new Error(data.message || 'API request failed');
+                }
 
-      // Show success message
-      pair.innerHTML = '<span class="success">Code generated successfully!</span>';
-    }
-
-    // Start countdown timer
-    function startCountdown(seconds) {
-      const countdownElement = document.getElementById('countdown');
-      let remaining = seconds;
-
-      // Clear any existing interval
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-      }
-
-      countdownInterval = setInterval(() => {
-        const minutes = Math.floor(remaining / 60);
-        const secs = remaining % 60;
-        countdownElement.textContent = `${minutes}:${secs.toString().padStart(2, '0')}`;
-
-        if (remaining <= 0) {
-          clearInterval(countdownInterval);
-          document.getElementById('pair').innerHTML = '<span class="error">Code expired! Generate a new one.</span>';
+                return data;
+            } catch (error) {
+                console.error('API Request Error:', error);
+                showError(error.message);
+                throw error;
+            }
         }
-        remaining--;
-      }, 1000);
-    }
 
-    // Reset the process
-    function resetProcess() {
-      // Clear intervals
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-      }
+        // Load dashboard data
+        async function loadDashboard() {
+            showLoading('Loading dashboard...');
+            try {
+                // Load user profile and balance
+                const profileData = await apiRequest('/users/profile');
+                currentUser = profileData.user;
+                
+                const balanceData = await apiRequest('/payments/balance');
+                document.getElementById('userBalance').textContent = `KES ${balanceData.balance.toLocaleString()}`;
+                document.getElementById('availableBalance').textContent = `KES ${balanceData.balance.toLocaleString()}`;
 
-      // Reset UI
-      document.getElementById('step2').classList.add('hidden');
-      document.getElementById('step1').classList.remove('hidden');
-      document.getElementById('number').value = '';
-      document.getElementById('number').style.background = 'rgba(0, 0, 0, 0.3)';
-      document.getElementById('pair').innerHTML = '';
-    }
+                // Load transactions
+                await loadTransactions();
 
-    // Copy code to clipboard
-    function copyCode() {
-      const code = document.getElementById('codeDisplay').textContent;
-      navigator.clipboard.writeText(code).then(() => {
-        const pair = document.getElementById('pair');
-        const oldHtml = pair.innerHTML;
-        pair.innerHTML = '<span class="success">Code copied to clipboard!</span>';
-        setTimeout(() => {
-          pair.innerHTML = oldHtml;
-        }, 2000);
-      }).catch(() => {
-        // Fallback for older browsers
-        alert('Code: ' + code);
-      });
-    }
+                // If user is admin, load admin data
+                if (currentUser.role === 'admin') {
+                    await loadAdminData();
+                }
 
-    // Event listeners
-    document.getElementById('submit').addEventListener('click', generateCode);
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                if (error.message.includes('Token') || error.message.includes('Authentication')) {
+                    logout();
+                }
+            }
+        }
 
-    // Allow pressing Enter on input to submit
-    document.getElementById('number').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        generateCode();
-      }
-    });
+        // Load transactions
+        async function loadTransactions() {
+            try {
+                const data = await apiRequest('/payments/transactions?limit=10');
+                const tbody = document.getElementById('transactionsTable');
+                
+                if (data.transactions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No transactions yet</td></tr>';
+                    return;
+                }
 
-    // Add click to copy functionality to code display
-    document.addEventListener('click', (e) => {
-      if (e.target.id === 'codeDisplay' || e.target.closest('#codeDisplay')) {
-        copyCode();
-      }
-    });
+                tbody.innerHTML = data.transactions.map(transaction => `
+                    <tr>
+                        <td>${new Date(transaction.createdAt).toLocaleDateString()}</td>
+                        <td>
+                            <span style="display: flex; align-items: center; gap: 0.5rem;">
+                                <i class="fas fa-${transaction.type === 'deposit' ? 'arrow-down' : 'arrow-up'} ${transaction.type === 'deposit' ? 'success' : 'warning'}"></i>
+                                ${transaction.type}
+                            </span>
+                        </td>
+                        <td>KES ${transaction.amount.toLocaleString()}</td>
+                        <td>
+                            <span style="padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.875rem; background: ${transaction.status === 'completed' ? '#d1fae5' : transaction.status === 'pending' ? '#fef3c7' : '#fee2e2'}; color: ${transaction.status === 'completed' ? '#10b981' : transaction.status === 'pending' ? '#f59e0b' : '#ef4444'}">
+                                ${transaction.status}
+                            </span>
+                        </td>
+                        <td><small>${transaction.reference}</small></td>
+                    </tr>
+                `).join('');
 
-    // Input validation styling
-    document.getElementById('number').addEventListener('input', function(e) {
-      const value = e.target.value.replace(/[^0-9]/g, '');
-      if (value.startsWith('254') && value.length === 12) {
-        this.style.background = 'rgba(0, 255, 0, 0.1)';
-        this.style.borderColor = 'var(--highlight)';
-      } else {
-        this.style.background = 'rgba(0, 0, 0, 0.3)';
-        this.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-      }
-    });
-  </script>
+                // Calculate totals
+                const deposits = data.transactions.filter(t => t.type === 'deposit' && t.status === 'completed')
+                    .reduce((sum, t) => sum + t.amount, 0);
+                const withdrawals = data.transactions.filter(t => t.type === 'withdrawal' && t.status === 'completed')
+                    .reduce((sum, t) => sum + t.amount, 0);
+
+                document.getElementById('totalDeposits').textContent = `KES ${deposits.toLocaleString()}`;
+                document.getElementById('totalWithdrawals').textContent = `KES ${withdrawals.toLocaleString()}`;
+
+            } catch (error) {
+                console.error('Error loading transactions:', error);
+            }
+        }
+
+        // Load admin data
+        async function loadAdminData() {
+            try {
+                const data = await apiRequest('/admin/summary');
+                
+                document.getElementById('adminTotalUsers').textContent = data.summary.totalUsers;
+                document.getElementById('adminTotalMerchants').textContent = data.summary.totalMerchants;
+                document.getElementById('adminTotalCommission').textContent = `KES ${data.summary.totalCommission.toLocaleString()}`;
+                document.getElementById('adminPlatformEarnings').textContent = `KES ${data.summary.platformEarnings.toLocaleString()}`;
+
+                // Load admin transactions
+                const tbody = document.getElementById('adminTransactionsTable');
+                if (data.recentTransactions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No transactions</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.recentTransactions.map(transaction => `
+                    <tr>
+                        <td>${new Date(transaction.createdAt).toLocaleDateString()}</td>
+                        <td>${transaction.userId?.name || transaction.merchantId?.companyName || 'N/A'}</td>
+                        <td>${transaction.type}</td>
+                        <td>KES ${transaction.amount.toLocaleString()}</td>
+                        <td>
+                            <span style="padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.875rem; background: ${transaction.status === 'completed' ? '#d1fae5' : transaction.status === 'pending' ? '#fef3c7' : '#fee2e2'}; color: ${transaction.status === 'completed' ? '#10b981' : transaction.status === 'pending' ? '#f59e0b' : '#ef4444'}">
+                                ${transaction.status}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+
+            } catch (error) {
+                console.error('Error loading admin data:', error);
+            }
+        }
+
+        // Handle deposit
+        async function handleDeposit(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('depositAmount').value);
+            const phone = document.getElementById('depositPhone').value;
+            const description = document.getElementById('depositDescription').value || 'BeraPay Deposit';
+
+            if (!amount || amount < 1) {
+                showError('Please enter a valid amount');
+                return;
+            }
+
+            showLoading('Initiating deposit...');
+
+            try {
+                const data = await apiRequest('/payments/stkpush', {
+                    method: 'POST',
+                    body: JSON.stringify({ amount, phone, description })
+                });
+
+                hideLoading();
+                showSuccess('Payment prompt sent! Check your phone to complete.');
+                
+                // Reset form
+                document.getElementById('depositForm').reset();
+                
+                // Reload data
+                setTimeout(loadDashboard, 2000);
+
+            } catch (error) {
+                hideLoading();
+            }
+        }
+
+        // Handle withdrawal
+        async function handleWithdrawal(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('withdrawAmount').value);
+            const phone = document.getElementById('withdrawPhone').value;
+
+            if (!amount || amount < 1) {
+                showError('Please enter a valid amount');
+                return;
+            }
+
+            showLoading('Processing withdrawal...');
+
+            try {
+                const data = await apiRequest('/payments/withdraw', {
+                    method: 'POST',
+                    body: JSON.stringify({ amount, phone })
+                });
+
+                hideLoading();
+                showSuccess('Withdrawal initiated successfully!');
+                
+                document.getElementById('withdrawForm').reset();
+                setTimeout(loadDashboard, 2000);
+
+            } catch (error) {
+                hideLoading();
+            }
+        }
+
+        // Handle merchant registration
+        async function handleMerchantRegister(e) {
+            e.preventDefault();
+            const companyName = document.getElementById('merchantCompany').value;
+            const email = document.getElementById('merchantEmail').value;
+            const webhookUrl = document.getElementById('merchantWebhook').value;
+
+            showLoading('Registering merchant...');
+
+            try {
+                const data = await apiRequest('/merchants/register', {
+                    method: 'POST',
+                    body: JSON.stringify({ companyName, email, webhookUrl })
+                });
+
+                hideLoading();
+                showSuccess('Merchant registered successfully!');
+
+                // Show API credentials
+                document.getElementById('apiCredentials').innerHTML = `
+                    <h4>API Credentials (Save these securely):</h4>
+                    <p><strong>API Key:</strong> ${data.apiKey}</p>
+                    <p><strong>Secret Key:</strong> ${data.secretKey}</p>
+                    <p><em>These keys will not be shown again.</em></p>
+                `;
+
+                document.getElementById('merchantRegisterForm').reset();
+
+            } catch (error) {
+                hideLoading();
+            }
+        }
+
+        // Handle PayBill setup
+        async function handlePaybillSetup(e) {
+            e.preventDefault();
+            const paybillNumber = document.getElementById('paybillNumber').value;
+            const accountNumber = document.getElementById('paybillAccount').value;
+
+            showLoading('Setting up PayBill...');
+
+            try {
+                const data = await apiRequest('/api/v1/merchant/paybill/setup', {
+                    method: 'POST',
+                    body: JSON.stringify({ paybillNumber, accountNumber })
+                });
+
+                hideLoading();
+                showSuccess('PayBill configured successfully!');
+                document.getElementById('paybillSetupForm').reset();
+
+            } catch (error) {
+                hideLoading();
+            }
+        }
+
+        // Section navigation
+        function showSection(sectionId) {
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Remove active class from all menu items
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionId).classList.add('active');
+            
+            // Add active class to clicked menu item
+            event.target.closest('.menu-item').classList.add('active');
+
+            // Load section-specific data
+            if (sectionId === 'dashboard') {
+                loadDashboard();
+            } else if (sectionId === 'payments') {
+                loadTransactions();
+            } else if (sectionId === 'admin' && currentUser?.role === 'admin') {
+                loadAdminData();
+            }
+        }
+
+        // Logout
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('authToken');
+            window.location.href = '/';
+        }
+
+        // Notification functions
+        function showError(message) {
+            showNotification(message, 'error');
+        }
+
+        function showSuccess(message) {
+            showNotification(message, 'success');
+        }
+
+        function showNotification(message, type = 'info') {
+            const existingNotifications = document.querySelectorAll('.notification');
+            existingNotifications.forEach(notification => notification.remove());
+
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i>
+                <span>${message}</span>
+            `;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.animation = 'slideIn 0.3s ease-in reverse';
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
+        }
+
+        // Loading functions
+        function showLoading(message = 'Loading...') {
+            const modal = document.getElementById('loadingModal');
+            const messageElement = document.getElementById('loadingMessage');
+            
+            if (messageElement) messageElement.textContent = message;
+            if (modal) modal.style.display = 'block';
+        }
+
+        function hideLoading() {
+            const modal = document.getElementById('loadingModal');
+            if (modal) modal.style.display = 'none';
+        }
+    </script>
 </body>
-          </html>
+  </html>
