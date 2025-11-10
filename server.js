@@ -4,88 +4,26 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const bodyParser = require('body-parser');
+const { PayHeroClient } = require('payhero-devkit');
 const path = require('path');
-const axios = require('axios');
 
 const app = express();
+const port = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json());
 app.use(express.static(__dirname));
 
-// PayHero API Service
-const payheroService = {
-  baseURL: 'https://api.payhero.co.ke/v1',
-  
-  async makeRequest(endpoint, data = null, method = 'POST') {
-    try {
-      const config = {
-        method: method,
-        url: `${this.baseURL}${endpoint}`,
-        headers: {
-          'Authorization': process.env.AUTH_TOKEN,
-          'Content-Type': 'application/json',
-          'Channel-ID': process.env.CHANNEL_ID
-        }
-      };
+// Initialize PayHero Client with YOUR credentials
+const client = new PayHeroClient({
+  authToken: process.env.AUTH_TOKEN
+});
 
-      if (data && method === 'POST') {
-        config.data = data;
-      }
+console.log('✅ PayHero Client initialized successfully');
 
-      const response = await axios(config);
-      return response.data;
-    } catch (error) {
-      console.error('PayHero API Error:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || 'PayHero API request failed');
-    }
-  },
-
-  async stkPush(phone, amount, reference) {
-    const data = {
-      phone: this.formatPhone(phone),
-      amount: Math.round(amount),
-      reference: reference,
-      provider: process.env.DEFAULT_PROVIDER || 'm-pesa'
-    };
-    
-    return await this.makeRequest('/stk_push', data);
-  },
-
-  async withdraw(phone, amount, reference) {
-    const data = {
-      phone: this.formatPhone(phone),
-      amount: Math.round(amount),
-      reference: reference,
-      provider: process.env.DEFAULT_PROVIDER || 'm-pesa'
-    };
-    
-    return await this.makeRequest('/withdraw', data);
-  },
-
-  async balance() {
-    return await this.makeRequest('/balance', null, 'GET');
-  },
-
-  async transactions() {
-    return await this.makeRequest('/transactions', null, 'GET');
-  },
-
-  formatPhone(phone) {
-    let formatted = phone.replace(/\s+/g, '');
-    if (formatted.startsWith('0')) {
-      formatted = '254' + formatted.substring(1);
-    } else if (formatted.startsWith('+254')) {
-      formatted = formatted.substring(1);
-    }
-    return formatted;
-  }
-};
-
-console.log('✅ PayHero service initialized with direct API calls');
-
-// Database Models with proper indexing
+// Database Models
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -104,7 +42,7 @@ const transactionSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
   status: { type: String, enum: ['pending', 'successful', 'failed'], default: 'pending' },
   commission: { type: Number, default: 0 },
-  external_reference: { type: String, required: true, unique: true, sparse: true },
+  external_reference: { type: String, required: true },
   recipient_phone: String,
   description: String,
   payhero_txn_id: String,
@@ -121,20 +59,8 @@ const adminSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-const developerSchema = new mongoose.Schema({
-  developer_name: { type: String, required: true },
-  api_key: { type: String, required: true, unique: true, sparse: true },
-  quota: { type: Number, default: 1000 },
-  usage: { type: Number, default: 0 },
-  is_active: { type: Boolean, default: true },
-  createdAt: { type: Date, default: Date.now }
-});
-
-// Create indexes to prevent duplicate key errors
+// Create indexes
 transactionSchema.index({ external_reference: 1 }, { unique: true, sparse: true });
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ phone: 1 }, { unique: true });
-adminSchema.index({ email: 1 }, { unique: true });
 
 // Pre-save middleware for hashing
 userSchema.pre('save', async function(next) {
@@ -150,14 +76,6 @@ adminSchema.pre('save', async function(next) {
   next();
 });
 
-developerSchema.pre('save', async function(next) {
-  if (this.isNew && !this.api_key) {
-    const crypto = require('crypto');
-    this.api_key = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
-  }
-  next();
-});
-
 // Methods
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
@@ -167,14 +85,9 @@ adminSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-developerSchema.methods.compareApiKey = async function(candidateApiKey) {
-  return await bcrypt.compare(candidateApiKey, this.api_key);
-};
-
 const User = mongoose.model('User', userSchema);
 const Transaction = mongoose.model('Transaction', transactionSchema);
 const Admin = mongoose.model('Admin', adminSchema);
-const DeveloperKey = mongoose.model('DeveloperKey', developerSchema);
 
 // ==================== AUTHENTICATION MIDDLEWARE ====================
 
@@ -216,32 +129,17 @@ const authAdmin = async (req, res, next) => {
   }
 };
 
-const authDeveloper = async (req, res, next) => {
-  try {
-    const apiKey = req.header('X-API-Key');
-    if (!apiKey) return res.status(401).json({ error: 'Access denied. No API key provided.' });
-
-    const developerKey = await DeveloperKey.findOne({ is_active: true });
-    if (!developerKey) return res.status(401).json({ error: 'Invalid API key.' });
-
-    const isValid = await bcrypt.compare(apiKey, developerKey.api_key);
-    if (!isValid) return res.status(401).json({ error: 'Invalid API key.' });
-
-    if (developerKey.usage >= developerKey.quota) {
-      return res.status(429).json({ error: 'API quota exceeded.' });
-    }
-
-    developerKey.usage += 1;
-    await developerKey.save();
-
-    req.developer = developerKey;
-    next();
-  } catch (error) {
-    res.status(401).json({ error: 'Invalid API key.' });
-  }
-};
-
 // ==================== UTILITY FUNCTIONS ====================
+
+const formatPhoneNumber = (phone) => {
+  let formatted = phone.replace(/\s+/g, '');
+  if (formatted.startsWith('0')) {
+    formatted = '254' + formatted.substring(1);
+  } else if (formatted.startsWith('+254')) {
+    formatted = formatted.substring(1);
+  }
+  return formatted;
+};
 
 const calculateCommission = (amount) => {
   return Number((amount * 0.02).toFixed(2));
@@ -345,7 +243,7 @@ app.get('/api/users/profile', authUser, async (req, res) => {
   });
 });
 
-// Deposit Funds
+// REAL STK Push Deposit - Using your working approach
 app.post('/api/users/deposit', authUser, async (req, res) => {
   try {
     const { amount, phone } = req.body;
@@ -354,8 +252,17 @@ app.post('/api/users/deposit', authUser, async (req, res) => {
       return res.status(400).json({ error: 'Amount must be at least KES 1' });
     }
 
+    // Format phone number
+    let formattedPhone = phone || req.user.phone;
+    formattedPhone = formatPhoneNumber(formattedPhone);
+
+    if (!formattedPhone.startsWith('254')) {
+      return res.status(400).json({ error: 'Phone number must be in format 2547XXXXXXXX' });
+    }
+
     const reference = generateReference('DEP', req.user._id);
     
+    // Create transaction record
     const transaction = new Transaction({
       user_id: req.user._id,
       type: 'deposit',
@@ -365,28 +272,43 @@ app.post('/api/users/deposit', authUser, async (req, res) => {
     });
     await transaction.save();
 
-    const result = await payheroService.stkPush(phone || req.user.phone, amount, reference);
+    // REAL STK Push with your credentials - EXACT SAME AS YOUR WORKING CODE
+    const stkPayload = {
+      phone_number: formattedPhone,
+      amount: parseFloat(amount),
+      provider: process.env.DEFAULT_PROVIDER || 'm-pesa',
+      channel_id: process.env.CHANNEL_ID,
+      external_reference: reference,
+      customer_name: req.user.name || 'Customer'
+    };
 
-    transaction.payhero_txn_id = result.transactionId;
+    console.log('🔄 Initiating REAL STK Push for deposit:', stkPayload);
+    
+    const response = await client.stkPush(stkPayload);
+    
+    console.log('✅ STK Push Response:', response);
+
+    // Update transaction with PayHero transaction ID
+    transaction.payhero_txn_id = response.reference;
     await transaction.save();
 
     res.json({
-      message: 'Deposit initiated successfully',
-      transactionId: transaction._id,
-      reference: result.reference,
-      payhero_txn_id: result.transactionId
+      success: true,
+      message: 'STK push initiated successfully',
+      data: response,
+      transactionId: transaction._id
     });
+
   } catch (error) {
-    console.error('Deposit error:', error);
-    
-    // Delete the transaction if PayHero call failed
-    await Transaction.deleteOne({ external_reference: reference });
-    
-    res.status(500).json({ error: error.message || 'Failed to initiate deposit' });
+    console.error('❌ STK Push Deposit Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to initiate STK push'
+    });
   }
 });
 
-// Withdraw Funds
+// REAL Withdrawal - Using PayHero withdraw
 app.post('/api/users/withdraw', authUser, async (req, res) => {
   try {
     const { amount, phone } = req.body;
@@ -399,11 +321,20 @@ app.post('/api/users/withdraw', authUser, async (req, res) => {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
 
+    // Format phone number
+    let formattedPhone = phone || req.user.phone;
+    formattedPhone = formatPhoneNumber(formattedPhone);
+
+    if (!formattedPhone.startsWith('254')) {
+      return res.status(400).json({ error: 'Phone number must be in format 2547XXXXXXXX' });
+    }
+
     const commission = calculateCommission(amount);
     const netAmount = amount - commission;
 
     const reference = generateReference('WD', req.user._id);
     
+    // Create transaction record
     const transaction = new Transaction({
       user_id: req.user._id,
       type: 'withdrawal',
@@ -414,44 +345,61 @@ app.post('/api/users/withdraw', authUser, async (req, res) => {
     });
     await transaction.save();
 
+    // Deduct from user balance immediately
     await User.findByIdAndUpdate(req.user._id, {
       $inc: { wallet_balance: -amount }
     });
 
-    const result = await payheroService.withdraw(phone || req.user.phone, netAmount, reference);
+    // REAL Withdrawal using PayHero
+    const withdrawPayload = {
+      phone_number: formattedPhone,
+      amount: parseFloat(netAmount),
+      provider: process.env.DEFAULT_PROVIDER || 'm-pesa',
+      channel_id: process.env.CHANNEL_ID,
+      external_reference: reference
+    };
 
-    transaction.payhero_txn_id = result.transactionId;
+    console.log('🔄 Initiating REAL Withdrawal:', withdrawPayload);
+    
+    const response = await client.withdraw(withdrawPayload);
+    
+    console.log('✅ Withdrawal Response:', response);
+
+    transaction.payhero_txn_id = response.reference;
     await transaction.save();
 
     res.json({
+      success: true,
       message: 'Withdrawal initiated successfully',
+      data: response,
       transactionId: transaction._id,
-      reference: result.reference,
-      payhero_txn_id: result.transactionId,
       commission: commission,
       netAmount: netAmount
     });
+
   } catch (error) {
-    console.error('Withdrawal error:', error);
+    console.error('❌ Withdrawal Error:', error);
     
-    // Refund user balance and delete transaction
+    // Refund user balance if withdrawal failed
     await User.findByIdAndUpdate(req.user._id, {
       $inc: { wallet_balance: amount }
     });
-    await Transaction.deleteOne({ external_reference: reference });
 
-    res.status(500).json({ error: error.message || 'Failed to initiate withdrawal' });
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to initiate withdrawal'
+    });
   }
 });
 
 // Get Balance
 app.get('/api/users/balance', authUser, async (req, res) => {
   try {
-    const balance = await payheroService.balance();
+    const balance = await client.serviceWalletBalance();
     
     res.json({
       wallet_balance: req.user.wallet_balance,
-      system_balance: balance.availableBalance || 0,
+      system_balance: balance.balance || 0,
       currency: 'KES'
     });
   } catch (error) {
@@ -532,6 +480,7 @@ app.post('/api/users/transfer', authUser, async (req, res) => {
       description: description || `Transfer from ${req.user.phone}`
     });
 
+    // Update balances
     await User.findByIdAndUpdate(req.user._id, {
       $inc: { wallet_balance: -amount }
     });
@@ -688,7 +637,7 @@ app.get('/api/admin/stats', authAdmin, async (req, res) => {
       { $group: { _id: null, total: { $sum: '$commission' } } }
     ]);
 
-    const balance = await payheroService.balance();
+    const balance = await client.serviceWalletBalance();
 
     const recentTransactions = await Transaction.find()
       .populate('user_id', 'name')
@@ -706,7 +655,7 @@ app.get('/api/admin/stats', authAdmin, async (req, res) => {
         commission: totalCommission[0]?.total || 0
       },
       system: {
-        balance: balance.availableBalance || 0,
+        balance: balance.balance || 0,
         currency: 'KES'
       },
       recentTransactions
@@ -717,186 +666,35 @@ app.get('/api/admin/stats', authAdmin, async (req, res) => {
   }
 });
 
-// ==================== DEVELOPER API ROUTES ====================
+// ==================== TRANSACTION STATUS ====================
 
-// Developer Deposit
-app.post('/api/v1/deposit', authDeveloper, async (req, res) => {
+// Transaction Status Endpoint - REAL IMPLEMENTATION (Same as your working code)
+app.get('/api/transaction-status/:reference', async (req, res) => {
   try {
-    const { phone, amount, reference } = req.body;
-
-    if (!phone || !amount || amount < 1) {
-      return res.status(400).json({ error: 'Phone and amount (min KES 1) are required' });
-    }
-
-    const user = await User.findOne({ phone, is_active: true });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const txReference = reference || generateReference('DEV_DEP', user._id);
+    const { reference } = req.params;
     
-    const transaction = new Transaction({
-      user_id: user._id,
-      type: 'deposit',
-      amount: amount,
-      status: 'pending',
-      external_reference: txReference
-    });
-    await transaction.save();
-
-    const result = await payheroService.stkPush(phone, amount, txReference);
-
-    transaction.payhero_txn_id = result.transactionId;
-    await transaction.save();
-
-    res.json({
-      success: true,
-      message: 'Deposit initiated successfully',
-      transactionId: transaction._id,
-      reference: result.reference,
-      payhero_txn_id: result.transactionId,
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone
-      }
-    });
-  } catch (error) {
-    console.error('Developer deposit error:', error);
-    
-    // Clean up failed transaction
-    await Transaction.deleteOne({ external_reference: txReference });
-    
-    res.status(500).json({ error: error.message || 'Failed to initiate deposit' });
-  }
-});
-
-// Developer Withdrawal
-app.post('/api/v1/withdraw', authDeveloper, async (req, res) => {
-  try {
-    const { phone, amount, reference } = req.body;
-
-    if (!phone || !amount || amount < 1) {
-      return res.status(400).json({ error: 'Phone and amount (min KES 1) are required' });
-    }
-
-    const user = await User.findOne({ phone, is_active: true });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    if (user.wallet_balance < amount) {
-      return res.status(400).json({ error: 'Insufficient balance' });
-    }
-
-    const commission = calculateCommission(amount);
-    const netAmount = amount - commission;
-
-    const txReference = reference || generateReference('DEV_WD', user._id);
-    
-    const transaction = new Transaction({
-      user_id: user._id,
-      type: 'withdrawal',
-      amount: amount,
-      status: 'pending',
-      commission: commission,
-      external_reference: txReference
-    });
-    await transaction.save();
-
-    await User.findByIdAndUpdate(user._id, {
-      $inc: { wallet_balance: -amount }
-    });
-
-    const result = await payheroService.withdraw(phone, netAmount, txReference);
-
-    transaction.payhero_txn_id = result.transactionId;
-    await transaction.save();
-
-    res.json({
-      success: true,
-      message: 'Withdrawal initiated successfully',
-      transactionId: transaction._id,
-      reference: result.reference,
-      payhero_txn_id: result.transactionId,
-      commission: commission,
-      netAmount: netAmount
-    });
-  } catch (error) {
-    console.error('Developer withdraw error:', error);
-    
-    // Clean up failed transaction
-    if (user) {
-      await User.findByIdAndUpdate(user._id, {
-        $inc: { wallet_balance: amount }
+    if (!reference) {
+      return res.status(400).json({
+        success: false,
+        error: 'Transaction reference is required'
       });
     }
-    await Transaction.deleteOne({ external_reference: txReference });
 
-    res.status(500).json({ error: error.message || 'Failed to initiate withdrawal' });
-  }
-});
-
-// Get User Balance (Developer API)
-app.get('/api/v1/balance', authDeveloper, async (req, res) => {
-  try {
-    const { phone } = req.query;
-
-    if (!phone) {
-      return res.status(400).json({ error: 'Phone number is required' });
-    }
-
-    const user = await User.findOne({ phone, is_active: true }).select('-password');
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
+    console.log('🔄 Checking REAL transaction status:', reference);
+    const response = await client.transactionStatus(reference);
+    console.log('✅ Status Response:', response);
+    
     res.json({
       success: true,
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone,
-        wallet_balance: user.wallet_balance
-      }
+      data: response
     });
+
   } catch (error) {
-    console.error('Developer balance error:', error);
-    res.status(500).json({ error: 'Failed to fetch balance' });
-  }
-});
-
-// Get User Transactions (Developer API)
-app.get('/api/v1/transactions', authDeveloper, async (req, res) => {
-  try {
-    const { phone, page = 1, limit = 10 } = req.query;
-
-    if (!phone) {
-      return res.status(400).json({ error: 'Phone number is required' });
-    }
-
-    const user = await User.findOne({ phone, is_active: true });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const transactions = await Transaction.find({ user_id: user._id })
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-
-    const total = await Transaction.countDocuments({ user_id: user._id });
-
-    res.json({
-      success: true,
-      transactions,
-      totalPages: Math.ceil(total / limit),
-      currentPage: parseInt(page),
-      total
+    console.error('❌ Transaction Status Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to get transaction status'
     });
-  } catch (error) {
-    console.error('Developer transactions error:', error);
-    res.status(500).json({ error: 'Failed to fetch transactions' });
   }
 });
 
@@ -936,34 +734,31 @@ app.post('/webhooks/payhero', async (req, res) => {
   }
 });
 
-// Health check
-app.get('/health', async (req, res) => {
+// Health check endpoint - Same as your working code
+app.get('/api/health', async (req, res) => {
   try {
-    await mongoose.connection.db.admin().ping();
-    
-    const balance = await payheroService.balance();
+    // Test the connection by checking service wallet balance
+    const balance = await client.serviceWalletBalance();
     
     res.json({
-      status: 'OK',
-      database: 'connected',
-      payhero: 'connected',
+      success: true,
+      message: 'BeraPay is running and connected to PayHero',
+      account_id: process.env.CHANNEL_ID,
       timestamp: new Date().toISOString(),
-      system_balance: balance.availableBalance || 0
+      balance: balance
     });
   } catch (error) {
-    res.status(503).json({
-      status: 'ERROR',
-      database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-      payhero: 'error',
-      error: error.message,
-      timestamp: new Date().toISOString()
+    res.json({
+      success: false,
+      message: 'BeraPay running but PayHero connection failed',
+      error: error.message
     });
   }
 });
 
 // ==================== INITIALIZATION ====================
 
-// Initialize default admin and developer
+// Initialize default admin
 async function initializeDefaults() {
   try {
     // Drop problematic indexes first
@@ -986,16 +781,6 @@ async function initializeDefaults() {
       console.log('✅ Default admin created: admin@berapay.com / admin123');
     }
 
-    // Create default developer key
-    const devExists = await DeveloperKey.findOne();
-    if (!devExists) {
-      const dev = new DeveloperKey({
-        developer_name: 'BeraPay Developer'
-      });
-      await dev.save();
-      console.log('✅ Default developer key created');
-    }
-
     console.log('✅ System initialization completed');
   } catch (error) {
     console.error('Initialization error:', error);
@@ -1014,13 +799,14 @@ mongoose.connect(process.env.MONGODB_URI)
     return initializeDefaults();
   })
   .then(() => {
-    const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => {
-      console.log(`🚀 BeraPay server running on port ${PORT}`);
-      console.log(`📍 Frontend: http://localhost:${PORT}`);
-      console.log(`🔧 API: http://localhost:${PORT}/api`);
-      console.log(`❤️  Health: http://localhost:${PORT}/health`);
-      console.log(`🔑 Admin Login: admin@berapay.com / admin123`);
+    app.listen(port, () => {
+      console.log('🚀 BeraPay - REAL IMPLEMENTATION');
+      console.log('📍 Server running on port:', port);
+      console.log('🔑 Account ID:', process.env.CHANNEL_ID);
+      console.log('📱 Provider:', process.env.DEFAULT_PROVIDER);
+      console.log('🌐 Access: http://localhost:' + port);
+      console.log('❤️  Health: http://localhost:' + port + '/api/health');
+      console.log('🔑 Admin Login: admin@berapay.com / admin123');
     });
   })
   .catch(err => {
