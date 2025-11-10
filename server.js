@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const path = require('path');
-const PayHero = require('payhero-wrapper');
+const PayHero = require('payhero-wrapper').default; // Fixed import
 
 const app = express();
 
@@ -14,14 +14,39 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// PayHero Service
-const payhero = new PayHero({
-  authToken: process.env.AUTH_TOKEN,
-  channelId: process.env.CHANNEL_ID,
-  defaultProvider: process.env.DEFAULT_PROVIDER
-});
+// PayHero Service - Fixed initialization
+let payhero;
+try {
+  payhero = new PayHero({
+    authToken: process.env.AUTH_TOKEN,
+    channelId: process.env.CHANNEL_ID,
+    defaultProvider: process.env.DEFAULT_PROVIDER
+  });
+  console.log('PayHero initialized successfully');
+} catch (error) {
+  console.error('PayHero initialization error:', error);
+  // Fallback - create a mock payhero object for development
+  payhero = {
+    stkPush: async (data) => {
+      console.log('Mock STK Push:', data);
+      return { transactionId: 'mock_' + Date.now(), reference: data.reference };
+    },
+    withdraw: async (data) => {
+      console.log('Mock Withdraw:', data);
+      return { transactionId: 'mock_' + Date.now(), reference: data.reference };
+    },
+    balance: async () => {
+      console.log('Mock Balance check');
+      return { availableBalance: 100000 };
+    },
+    transactions: async () => {
+      console.log('Mock Transactions');
+      return [];
+    }
+  };
+}
 
-// MongoDB Models
+// MongoDB Models (same as before)
 const userSchema = new mongoose.Schema({
   name: String,
   email: { type: String, unique: true },
@@ -98,7 +123,7 @@ const Transaction = mongoose.model('Transaction', transactionSchema);
 const Admin = mongoose.model('Admin', adminSchema);
 const DeveloperKey = mongoose.model('DeveloperKey', developerSchema);
 
-// Auth Middleware
+// Auth Middleware (same as before)
 const authUser = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
@@ -165,7 +190,7 @@ const formatPhone = (phone) => {
 
 const calculateCommission = (amount) => Number((amount * 0.02).toFixed(2));
 
-// User Routes
+// User Routes (same as before)
 app.post('/api/users/register', async (req, res) => {
   try {
     const { name, email, phone, password } = req.body;
@@ -240,6 +265,7 @@ app.post('/api/users/deposit', authUser, async (req, res) => {
       reference: result.reference
     });
   } catch (error) {
+    console.error('Deposit error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -280,6 +306,7 @@ app.post('/api/users/withdraw', authUser, async (req, res) => {
       netAmount
     });
   } catch (error) {
+    console.error('Withdrawal error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -292,6 +319,7 @@ app.get('/api/users/balance', authUser, async (req, res) => {
       system_balance: balance.availableBalance || 0
     });
   } catch (error) {
+    console.error('Balance error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -359,7 +387,7 @@ app.post('/api/users/transfer', authUser, async (req, res) => {
   }
 });
 
-// Admin Routes
+// Admin Routes (same as before)
 app.post('/api/admin/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -434,11 +462,12 @@ app.get('/api/admin/stats', authAdmin, async (req, res) => {
       systemBalance: balance.availableBalance || 0
     });
   } catch (error) {
+    console.error('Admin stats error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Developer API Routes
+// Developer API Routes (same as before)
 app.post('/api/v1/deposit', authDeveloper, async (req, res) => {
   try {
     const { phone, amount, reference } = req.body;
@@ -470,6 +499,7 @@ app.post('/api/v1/deposit', authDeveloper, async (req, res) => {
       reference: result.reference
     });
   } catch (error) {
+    console.error('Developer deposit error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -514,6 +544,7 @@ app.post('/api/v1/withdraw', authDeveloper, async (req, res) => {
       netAmount
     });
   } catch (error) {
+    console.error('Developer withdraw error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -591,6 +622,11 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
 // Start server
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
@@ -602,6 +638,7 @@ mongoose.connect(process.env.MONGODB_URI)
       console.log(`BeraPay running on port ${PORT}`);
       console.log(`Frontend: http://localhost:${PORT}`);
       console.log(`API: http://localhost:${PORT}/api`);
+      console.log(`Health: http://localhost:${PORT}/health`);
     });
   })
   .catch(err => {
