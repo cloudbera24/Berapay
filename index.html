@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BeraPay - Digital Wallet</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .hero-section { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 100px 0; }
+        .feature-card { border: none; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: transform 0.3s; }
+        .feature-card:hover { transform: translateY(-5px); }
+        .wallet-balance { font-size: 2.5rem; font-weight: bold; color: #28a745; }
+        .transaction-item { border-left: 4px solid #007bff; padding-left: 15px; margin-bottom: 15px; }
+        .transaction-item.withdrawal { border-left-color: #dc3545; }
+        .dashboard-nav { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .section { display: none; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark dashboard-nav">
+        <div class="container">
+            <a class="navbar-brand" href="#"><i class="fas fa-wallet"></i> BeraPay</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="#" onclick="showSection('login')">Login</a>
+                <a class="nav-link" href="#" onclick="showSection('register')">Register</a>
+                <a class="nav-link" href="#" onclick="showSection('admin-login')">Admin</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero-section text-center">
+        <div class="container">
+            <h1 class="display-4 mb-4">Welcome to BeraPay</h1>
+            <p class="lead mb-4">Secure Digital Wallet with M-Pesa Integration</p>
+            <button class="btn btn-light btn-lg" onclick="showSection('register')">Get Started</button>
+        </div>
+    </section>
+
+    <div class="container my-5">
+        <!-- Login Section -->
+        <div id="login-section" class="section">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card feature-card">
+                        <div class="card-body p-5">
+                            <h3 class="card-title text-center mb-4">Login</h3>
+                            <form id="loginForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="loginEmail" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="loginPassword" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Login</button>
+                            </form>
+                            <div class="text-center mt-3">
+                                <a href="#" onclick="showSection('register')">Don't have an account? Register</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Register Section -->
+        <div id="register-section" class="section">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card feature-card">
+                        <div class="card-body p-5">
+                            <h3 class="card-title text-center mb-4">Register</h3>
+                            <form id="registerForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Full Name</label>
+                                    <input type="text" class="form-control" id="registerName" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="registerEmail" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="registerPhone" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="registerPassword" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Create Account</button>
+                            </form>
+                            <div class="text-center mt-3">
+                                <a href="#" onclick="showSection('login')">Already have an account? Login</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Login -->
+        <div id="admin-login-section" class="section">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card feature-card">
+                        <div class="card-body p-5">
+                            <h3 class="card-title text-center mb-4">Admin Login</h3>
+                            <form id="adminLoginForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="adminEmail" value="admin@berapay.com" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="adminPassword" value="admin123" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Admin Login</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Dashboard -->
+        <div id="dashboard-section" class="section">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card feature-card">
+                        <div class="card-body">
+                            <h5 class="card-title">Navigation</h5>
+                            <div class="list-group list-group-flush">
+                                <a href="#" class="list-group-item list-group-item-action active" onclick="showTab('overview')">
+                                    <i class="fas fa-home"></i> Overview
+                                </a>
+                                <a href="#" class="list-group-item list-group-item-action" onclick="showTab('deposit')">
+                                    <i class="fas fa-arrow-down"></i> Deposit
+                                </a>
+                                <a href="#" class="list-group-item list-group-item-action" onclick="showTab('withdraw')">
+                                    <i class="fas fa-arrow-up"></i> Withdraw
+                                </a>
+                                <a href="#" class="list-group-item list-group-item-action" onclick="showTab('transfer')">
+                                    <i class="fas fa-exchange-alt"></i> Transfer
+                                </a>
+                                <a href="#" class="list-group-item list-group-item-action" onclick="showTab('transactions')">
+                                    <i class="fas fa-history"></i> Transactions
+                                </a>
+                                <a href="#" class="list-group-item list-group-item-action" onclick="logout()">
+                                    <i class="fas fa-sign-out-alt"></i> Logout
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-9">
+                    <!-- Overview Tab -->
+                    <div id="overview-tab" class="tab-content">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card feature-card">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-title">Wallet Balance</h6>
+                                        <div class="wallet-balance" id="walletBalance">KES 0.00</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card feature-card">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-title">System Balance</h6>
+                                        <div class="wallet-balance" id="systemBalance">KES 0.00</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card feature-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Quick Actions</h5>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <button class="btn btn-primary w-100 mb-2" onclick="showTab('deposit')">
+                                            <i class="fas fa-arrow-down"></i> Deposit
+                                        </button>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button class="btn btn-success w-100 mb-2" onclick="showTab('withdraw')">
+                                            <i class="fas fa-arrow-up"></i> Withdraw
+                                        </button>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button class="btn btn-info w-100 mb-2" onclick="showTab('transfer')">
+                                            <i class="fas fa-exchange-alt"></i> Transfer
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Deposit Tab -->
+                    <div id="deposit-tab" class="tab-content" style="display: none;">
+                        <div class="card feature-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Deposit Funds</h5>
+                                <form id="depositForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">Phone Number</label>
+                                        <input type="tel" class="form-control" id="depositPhone" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Amount (KES)</label>
+                                        <input type="number" class="form-control" id="depositAmount" min="1" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Initiate Deposit</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Withdraw Tab -->
+                    <div id="withdraw-tab" class="tab-content" style="display: none;">
+                        <div class="card feature-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Withdraw Funds</h5>
+                                <form id="withdrawForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">Phone Number</label>
+                                        <input type="tel" class="form-control" id="withdrawPhone" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Amount (KES)</label>
+                                        <input type="number" class="form-control" id="withdrawAmount" min="1" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-success">Initiate Withdrawal</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transfer Tab -->
+                    <div id="transfer-tab" class="tab-content" style="display: none;">
+                        <div class="card feature-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Transfer to User</h5>
+                                <form id="transferForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">Recipient Phone</label>
+                                        <input type="tel" class="form-control" id="transferPhone" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Amount (KES)</label>
+                                        <input type="number" class="form-control" id="transferAmount" min="1" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Description</label>
+                                        <input type="text" class="form-control" id="transferDescription">
+                                    </div>
+                                    <button type="submit" class="btn btn-info">Send Transfer</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transactions Tab -->
+                    <div id="transactions-tab" class="tab-content" style="display: none;">
+                        <div class="card feature-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Transaction History</h5>
+                                <div id="transactionsList"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Dashboard -->
+        <div id="admin-dashboard-section" class="section">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card feature-card">
+                        <div class="card-body">
+                            <h5 class="card-title">Admin Panel</h5>
+                            <div class="list-group list-group-flush">
+                                <a href="#" class="list-group-item list-group-item-action active" onclick="showAdminTab('admin-overview')">
+                                    <i class="fas fa-chart-bar"></i> Overview
+                                </a>
+                                <a href="#" class="list-group-item list-group-item-action" onclick="showAdminTab('admin-users')">
+                                    <i class="fas fa-users"></i> Users
+                                </a>
+                                <a href="#" class="list-group-item list-group-item-action" onclick="showAdminTab('admin-transactions')">
+                                    <i class="fas fa-list"></i> Transactions
+                                </a>
+                                <a href="#" class="list-group-item list-group-item-action" onclick="adminLogout()">
+                                    <i class="fas fa-sign-out-alt"></i> Logout
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-9">
+                    <!-- Admin Overview -->
+                    <div id="admin-overview-tab" class="admin-tab-content">
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="card feature-card">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-title">Total Users</h6>
+                                        <div class="wallet-balance" id="totalUsers">0</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card feature-card">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-title">Total Volume</h6>
+                                        <div class="wallet-balance" id="totalVolume">KES 0</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card feature-card">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-title">Total Commission</h6>
+                                        <div class="wallet-balance" id="totalCommission">KES 0</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card feature-card">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-title">System Balance</h6>
+                                        <div class="wallet-balance" id="adminSystemBalance">KES 0</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Admin Users -->
+                    <div id="admin-users-tab" class="admin-tab-content" style="display: none;">
+                        <div class="card feature-card">
+                            <div class="card-body">
+                                <h5 class="card-title">All Users</h5>
+                                <div id="usersList"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Admin Transactions -->
+                    <div id="admin-transactions-tab" class="admin-tab-content" style="display: none;">
+                        <div class="card feature-card">
+                            <div class="card-body">
+                                <h5 class="card-title">All Transactions</h5>
+                                <div id="adminTransactionsList"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentUser = null;
+        let currentAdmin = null;
+
+        // Show specific section
+        function showSection(section) {
+            document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+            document.getElementById(section + '-section').style.display = 'block';
+        }
+
+        // Show tab in dashboard
+        function showTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+            document.getElementById(tab + '-tab').style.display = 'block';
+            document.querySelectorAll('.list-group-item').forEach(i => i.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // Show admin tab
+        function showAdminTab(tab) {
+            document.querySelectorAll('.admin-tab-content').forEach(t => t.style.display = 'none');
+            document.getElementById(tab + '-tab').style.display = 'block';
+            document.querySelectorAll('.list-group-item').forEach(i => i.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // Show alert
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+            setTimeout(() => alertDiv.remove(), 5000);
+        }
+
+        // API call helper
+        async function apiCall(endpoint, options = {}) {
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(currentUser && { 'Authorization': `Bearer ${currentUser.token}` }),
+                    ...(currentAdmin && { 'Authorization': `Bearer ${currentAdmin.token}` })
+                },
+                ...options
+            };
+
+            if (options.body) {
+                config.body = JSON.stringify(options.body);
+            }
+
+            try {
+                const response = await fetch(endpoint, config);
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Request failed');
+                return data;
+            } catch (error) {
+                showAlert(error.message, 'danger');
+                throw error;
+            }
+        }
+
+        // User registration
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                name: document.getElementById('registerName').value,
+                email: document.getElementById('registerEmail').value,
+                phone: document.getElementById('registerPhone').value,
+                password: document.getElementById('registerPassword').value
+            };
+
+            try {
+                const data = await apiCall('/api/users/register', {
+                    method: 'POST',
+                    body: formData
+                });
+                currentUser = data;
+                showDashboard();
+                showAlert('Registration successful!', 'success');
+            } catch (error) {}
+        });
+
+        // User login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                email: document.getElementById('loginEmail').value,
+                password: document.getElementById('loginPassword').value
+            };
+
+            try {
+                const data = await apiCall('/api/users/login', {
+                    method: 'POST',
+                    body: formData
+                });
+                currentUser = data;
+                showDashboard();
+                showAlert('Login successful!', 'success');
+            } catch (error) {}
+        });
+
+        // Admin login
+        document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                email: document.getElementById('adminEmail').value,
+                password: document.getElementById('adminPassword').value
+            };
+
+            try {
+                const data = await apiCall('/api/admin/login', {
+                    method: 'POST',
+                    body: formData
+                });
+                currentAdmin = data;
+                showAdminDashboard();
+                showAlert('Admin login successful!', 'success');
+            } catch (error) {}
+        });
+
+        // Deposit
+        document.getElementById('depositForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                phone: document.getElementById('depositPhone').value,
+                amount: parseFloat(document.getElementById('depositAmount').value)
+            };
+
+            try {
+                const data = await apiCall('/api/users/deposit', {
+                    method: 'POST',
+                    body: formData
+                });
+                showAlert('Deposit initiated! Check your phone.', 'success');
+                document.getElementById('depositForm').reset();
+                loadBalance();
+            } catch (error) {}
+        });
+
+        // Withdraw
+        document.getElementById('withdrawForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                phone: document.getElementById('withdrawPhone').value,
+                amount: parseFloat(document.getElementById('withdrawAmount').value)
+            };
+
+            try {
+                const data = await apiCall('/api/users/withdraw', {
+                    method: 'POST',
+                    body: formData
+                });
+                showAlert(`Withdrawal initiated! Commission: KES ${data.commission}`, 'success');
+                document.getElementById('withdrawForm').reset();
+                loadBalance();
+            } catch (error) {}
+        });
+
+        // Transfer
+        document.getElementById('transferForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                recipient_phone: document.getElementById('transferPhone').value,
+                amount: parseFloat(document.getElementById('transferAmount').value),
+                description: document.getElementById('transferDescription').value
+            };
+
+            try {
+                const data = await apiCall('/api/users/transfer', {
+                    method: 'POST',
+                    body: formData
+                });
+                showAlert(`Transfer successful! Commission: KES ${data.commission}`, 'success');
+                document.getElementById('transferForm').reset();
+                loadBalance();
+                loadTransactions();
+            } catch (error) {}
+        });
+
+        // Load user balance
+        async function loadBalance() {
+            try {
+                const data = await apiCall('/api/users/balance');
+                document.getElementById('walletBalance').textContent = `KES ${currentUser.user.wallet_balance.toFixed(2)}`;
+                document.getElementById('systemBalance').textContent = `KES ${data.system_balance.toFixed(2)}`;
+            } catch (error) {}
+        }
+
+        // Load transactions
+        async function loadTransactions() {
+            try {
+                const data = await apiCall('/api/users/transactions');
+                const container = document.getElementById('transactionsList');
+                
+                if (!data.transactions.length) {
+                    container.innerHTML = '<p class="text-muted">No transactions</p>';
+                    return;
+                }
+
+                let html = '';
+                data.transactions.forEach(tx => {
+                    const typeClass = tx.amount < 0 ? 'withdrawal' : '';
+                    const amountClass = tx.amount < 0 ? 'text-danger' : 'text-success';
+                    const icon = tx.amount < 0 ? 'arrow-up' : 'arrow-down';
+                    
+                    html += `
+                        <div class="transaction-item ${typeClass}">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <i class="fas fa-${icon}"></i>
+                                    <strong>${tx.type}</strong>
+                                    ${tx.description ? `<br><small>${tx.description}</small>` : ''}
+                                    <br><small class="text-muted">${new Date(tx.createdAt).toLocaleString()}</small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="${amountClass}">KES ${Math.abs(tx.amount).toFixed(2)}</div>
+                                    <span class="badge bg-${tx.status === 'successful' ? 'success' : 'warning'}">${tx.status}</span>
+                                    ${tx.commission > 0 ? `<br><small class="text-muted">Fee: KES ${tx.commission.toFixed(2)}</small>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } catch (error) {}
+        }
+
+        // Load admin stats
+        async function loadAdminStats() {
+            try {
+                const data = await apiCall('/api/admin/stats');
+                document.getElementById('totalUsers').textContent = data.totalUsers;
+                document.getElementById('totalVolume').textContent = `KES ${data.totalVolume.toFixed(2)}`;
+                document.getElementById('totalCommission').textContent = `KES ${data.totalCommission.toFixed(2)}`;
+                document.getElementById('adminSystemBalance').textContent = `KES ${data.systemBalance.toFixed(2)}`;
+            } catch (error) {}
+        }
+
+        // Load admin users
+        async function loadAdminUsers() {
+            try {
+                const data = await apiCall('/api/admin/users');
+                const container = document.getElementById('usersList');
+                
+                let html = '<div class="table-responsive"><table class="table table-striped"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Balance</th><th>Joined</th></tr></thead><tbody>';
+                data.users.forEach(user => {
+                    html += `<tr>
+                        <td>${user.name}</td>
+                        <td>${user.email}</td>
+                        <td>${user.phone}</td>
+                        <td>KES ${user.wallet_balance.toFixed(2)}</td>
+                        <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            } catch (error) {}
+        }
+
+        // Load admin transactions
+        async function loadAdminTransactions() {
+            try {
+                const data = await apiCall('/api/admin/transactions');
+                const container = document.getElementById('adminTransactionsList');
+                
+                let html = `<p>Total Commission: <strong>KES ${data.totalCommission.toFixed(2)}</strong></p>
+                <div class="table-responsive"><table class="table table-striped"><thead><tr><th>User</th><th>Type</th><th>Amount</th><th>Fee</th><th>Status</th><th>Date</th></tr></thead><tbody>`;
+                
+                data.transactions.forEach(tx => {
+                    html += `<tr>
+                        <td>${tx.user_id?.name || 'N/A'}</td>
+                        <td>${tx.type}</td>
+                        <td>KES ${Math.abs(tx.amount).toFixed(2)}</td>
+                        <td>KES ${tx.commission.toFixed(2)}</td>
+                        <td><span class="badge bg-${tx.status === 'successful' ? 'success' : 'warning'}">${tx.status}</span></td>
+                        <td>${new Date(tx.createdAt).toLocaleString()}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            } catch (error) {}
+        }
+
+        // Show user dashboard
+        function showDashboard() {
+            showSection('dashboard');
+            showTab('overview');
+            document.getElementById('depositPhone').value = currentUser.user.phone;
+            document.getElementById('withdrawPhone').value = currentUser.user.phone;
+            loadBalance();
+            loadTransactions();
+        }
+
+        // Show admin dashboard
+        function showAdminDashboard() {
+            showSection('admin-dashboard');
+            showAdminTab('admin-overview');
+            loadAdminStats();
+            loadAdminUsers();
+            loadAdminTransactions();
+        }
+
+        // Logout
+        function logout() {
+            currentUser = null;
+            showSection('login');
+            showAlert('Logged out successfully', 'info');
+        }
+
+        function adminLogout() {
+            currentAdmin = null;
+            showSection('admin-login');
+            showAlert('Admin logged out', 'info');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            showSection('login');
+        });
+    </script>
+</body>
+</html>
