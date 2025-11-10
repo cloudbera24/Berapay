@@ -85,7 +85,7 @@ const payheroService = {
 
 console.log('✅ PayHero service initialized with direct API calls');
 
-// Database Models (same as before)
+// Database Models with proper indexing
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -104,7 +104,7 @@ const transactionSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
   status: { type: String, enum: ['pending', 'successful', 'failed'], default: 'pending' },
   commission: { type: Number, default: 0 },
-  external_reference: { type: String, required: true },
+  external_reference: { type: String, required: true, unique: true, sparse: true },
   recipient_phone: String,
   description: String,
   payhero_txn_id: String,
@@ -123,12 +123,18 @@ const adminSchema = new mongoose.Schema({
 
 const developerSchema = new mongoose.Schema({
   developer_name: { type: String, required: true },
-  api_key: { type: String, required: true },
+  api_key: { type: String, required: true, unique: true, sparse: true },
   quota: { type: Number, default: 1000 },
   usage: { type: Number, default: 0 },
   is_active: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now }
 });
+
+// Create indexes to prevent duplicate key errors
+transactionSchema.index({ external_reference: 1 }, { unique: true, sparse: true });
+userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ phone: 1 }, { unique: true });
+adminSchema.index({ email: 1 }, { unique: true });
 
 // Pre-save middleware for hashing
 userSchema.pre('save', async function(next) {
@@ -283,6 +289,9 @@ app.post('/api/users/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ error: 'User already exists with this email or phone' });
+    }
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -369,6 +378,10 @@ app.post('/api/users/deposit', authUser, async (req, res) => {
     });
   } catch (error) {
     console.error('Deposit error:', error);
+    
+    // Delete the transaction if PayHero call failed
+    await Transaction.deleteOne({ external_reference: reference });
+    
     res.status(500).json({ error: error.message || 'Failed to initiate deposit' });
   }
 });
@@ -421,9 +434,11 @@ app.post('/api/users/withdraw', authUser, async (req, res) => {
   } catch (error) {
     console.error('Withdrawal error:', error);
     
+    // Refund user balance and delete transaction
     await User.findByIdAndUpdate(req.user._id, {
       $inc: { wallet_balance: amount }
     });
+    await Transaction.deleteOne({ external_reference: reference });
 
     res.status(500).json({ error: error.message || 'Failed to initiate withdrawal' });
   }
@@ -540,6 +555,9 @@ app.post('/api/users/transfer', authUser, async (req, res) => {
     });
   } catch (error) {
     console.error('Transfer error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ error: 'Duplicate transaction detected' });
+    }
     res.status(500).json({ error: 'Transfer failed' });
   }
 });
@@ -745,6 +763,10 @@ app.post('/api/v1/deposit', authDeveloper, async (req, res) => {
     });
   } catch (error) {
     console.error('Developer deposit error:', error);
+    
+    // Clean up failed transaction
+    await Transaction.deleteOne({ external_reference: txReference });
+    
     res.status(500).json({ error: error.message || 'Failed to initiate deposit' });
   }
 });
@@ -803,11 +825,13 @@ app.post('/api/v1/withdraw', authDeveloper, async (req, res) => {
   } catch (error) {
     console.error('Developer withdraw error:', error);
     
+    // Clean up failed transaction
     if (user) {
       await User.findByIdAndUpdate(user._id, {
         $inc: { wallet_balance: amount }
       });
     }
+    await Transaction.deleteOne({ external_reference: txReference });
 
     res.status(500).json({ error: error.message || 'Failed to initiate withdrawal' });
   }
@@ -942,6 +966,15 @@ app.get('/health', async (req, res) => {
 // Initialize default admin and developer
 async function initializeDefaults() {
   try {
+    // Drop problematic indexes first
+    try {
+      await Transaction.collection.dropIndex('ref_1');
+      console.log('✅ Dropped problematic ref_1 index');
+    } catch (e) {
+      console.log('ℹ️  No problematic index to drop');
+    }
+
+    // Create default admin
     const adminExists = await Admin.findOne({ email: 'admin@berapay.com' });
     if (!adminExists) {
       const admin = new Admin({
@@ -953,6 +986,7 @@ async function initializeDefaults() {
       console.log('✅ Default admin created: admin@berapay.com / admin123');
     }
 
+    // Create default developer key
     const devExists = await DeveloperKey.findOne();
     if (!devExists) {
       const dev = new DeveloperKey({
