@@ -23,7 +23,7 @@ const client = new PayHeroClient({
 
 console.log('✅ PayHero Client initialized successfully');
 
-// Database Models
+// Database Models with Enhanced Admin System
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -32,6 +32,11 @@ const userSchema = new mongoose.Schema({
   wallet_balance: { type: Number, default: 0 },
   role: { type: String, default: 'user' },
   is_active: { type: Boolean, default: true },
+  is_verified: { type: Boolean, default: false },
+  is_blocked: { type: Boolean, default: false },
+  blocked_reason: { type: String, default: '' },
+  kyc_status: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
+  created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
@@ -40,12 +45,14 @@ const transactionSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   type: { type: String, enum: ['deposit', 'withdrawal', 'transfer'], required: true },
   amount: { type: Number, required: true },
-  status: { type: String, enum: ['pending', 'successful', 'failed'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'successful', 'failed', 'cancelled'], default: 'pending' },
   commission: { type: Number, default: 0 },
   external_reference: { type: String, required: true },
   recipient_phone: String,
   description: String,
   payhero_txn_id: String,
+  admin_notes: String,
+  processed_by: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -53,14 +60,34 @@ const adminSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, default: 'admin' },
-  permissions: { type: [String], default: ['users', 'transactions', 'reports'] },
+  role: { type: String, enum: ['super_admin', 'admin', 'support'], default: 'admin' },
+  permissions: { 
+    type: [String], 
+    default: [
+      'view_users', 'manage_users', 'view_transactions', 'manage_transactions',
+      'process_withdrawals', 'view_reports', 'system_settings'
+    ] 
+  },
   is_active: { type: Boolean, default: true },
+  last_login: { type: Date },
+  created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const adminLogSchema = new mongoose.Schema({
+  admin_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', required: true },
+  action: { type: String, required: true },
+  target_type: { type: String, enum: ['user', 'transaction', 'system'] },
+  target_id: mongoose.Schema.Types.ObjectId,
+  details: mongoose.Schema.Types.Mixed,
+  ip_address: String,
+  user_agent: String,
   createdAt: { type: Date, default: Date.now }
 });
 
 // Create indexes
 transactionSchema.index({ external_reference: 1 }, { unique: true, sparse: true });
+adminLogSchema.index({ admin_id: 1, createdAt: -1 });
 
 // Pre-save middleware for hashing
 userSchema.pre('save', async function(next) {
@@ -85,9 +112,46 @@ adminSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
+adminSchema.methods.hasPermission = function(permission) {
+  return this.permissions.includes(permission) || this.role === 'super_admin';
+};
+
 const User = mongoose.model('User', userSchema);
 const Transaction = mongoose.model('Transaction', transactionSchema);
 const Admin = mongoose.model('Admin', adminSchema);
+const AdminLog = mongoose.model('AdminLog', adminLogSchema);
+
+// ==================== ADMIN LOGGING ====================
+
+async function logAdminAction(adminId, action, targetType = null, targetId = null, details = null, req = null) {
+  try {
+    const log = new AdminLog({
+      admin_id: adminId,
+      action,
+      target_type: targetType,
+      target_id: targetId,
+      details,
+      ip_address: req?.ip || req?.connection?.remoteAddress,
+      user_agent: req?.get('User-Agent')
+    });
+    await log.save();
+  } catch (error) {
+    console.error('Failed to log admin action:', error);
+  }
+}
+
+// ==================== PERMISSION MIDDLEWARE ====================
+
+const requirePermission = (permission) => {
+  return (req, res, next) => {
+    if (!req.admin.hasPermission(permission)) {
+      return res.status(403).json({ 
+        error: 'Access denied. Insufficient permissions.' 
+      });
+    }
+    next();
+  };
+};
 
 // ==================== AUTHENTICATION MIDDLEWARE ====================
 
@@ -101,6 +165,12 @@ const authUser = async (req, res, next) => {
     
     if (!user || !user.is_active) {
       return res.status(401).json({ error: 'Invalid token or user deactivated.' });
+    }
+
+    if (user.is_blocked) {
+      return res.status(403).json({ 
+        error: `Account blocked. Reason: ${user.blocked_reason || 'Violation of terms'}` 
+      });
     }
 
     req.user = user;
@@ -121,6 +191,10 @@ const authAdmin = async (req, res, next) => {
     if (!admin || !admin.is_active) {
       return res.status(401).json({ error: 'Invalid admin token or admin deactivated.' });
     }
+
+    // Update last login
+    admin.last_login = new Date();
+    await admin.save();
 
     req.admin = admin;
     next();
@@ -182,7 +256,8 @@ app.post('/api/users/register', async (req, res) => {
         email: user.email,
         phone: user.phone,
         wallet_balance: user.wallet_balance,
-        role: user.role
+        role: user.role,
+        is_verified: user.is_verified
       }
     });
   } catch (error) {
@@ -203,9 +278,19 @@ app.post('/api/users/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const user = await User.findOne({ email, is_active: true });
+    const user = await User.findOne({ email });
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (!user.is_active) {
+      return res.status(403).json({ error: 'Account deactivated. Please contact support.' });
+    }
+
+    if (user.is_blocked) {
+      return res.status(403).json({ 
+        error: `Account blocked. Reason: ${user.blocked_reason || 'Violation of terms'}` 
+      });
     }
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -219,7 +304,9 @@ app.post('/api/users/login', async (req, res) => {
         email: user.email,
         phone: user.phone,
         wallet_balance: user.wallet_balance,
-        role: user.role
+        role: user.role,
+        is_verified: user.is_verified,
+        is_blocked: user.is_blocked
       }
     });
   } catch (error) {
@@ -238,12 +325,15 @@ app.get('/api/users/profile', authUser, async (req, res) => {
       phone: req.user.phone,
       wallet_balance: req.user.wallet_balance,
       role: req.user.role,
+      is_verified: req.user.is_verified,
+      is_blocked: req.user.is_blocked,
+      kyc_status: req.user.kyc_status,
       createdAt: req.user.createdAt
     }
   });
 });
 
-// REAL STK Push Deposit - Using your working approach
+// REAL STK Push Deposit
 app.post('/api/users/deposit', authUser, async (req, res) => {
   try {
     const { amount, phone } = req.body;
@@ -252,7 +342,6 @@ app.post('/api/users/deposit', authUser, async (req, res) => {
       return res.status(400).json({ error: 'Amount must be at least KES 1' });
     }
 
-    // Format phone number
     let formattedPhone = phone || req.user.phone;
     formattedPhone = formatPhoneNumber(formattedPhone);
 
@@ -262,7 +351,6 @@ app.post('/api/users/deposit', authUser, async (req, res) => {
 
     const reference = generateReference('DEP', req.user._id);
     
-    // Create transaction record
     const transaction = new Transaction({
       user_id: req.user._id,
       type: 'deposit',
@@ -272,7 +360,6 @@ app.post('/api/users/deposit', authUser, async (req, res) => {
     });
     await transaction.save();
 
-    // REAL STK Push with your credentials - EXACT SAME AS YOUR WORKING CODE
     const stkPayload = {
       phone_number: formattedPhone,
       amount: parseFloat(amount),
@@ -288,7 +375,6 @@ app.post('/api/users/deposit', authUser, async (req, res) => {
     
     console.log('✅ STK Push Response:', response);
 
-    // Update transaction with PayHero transaction ID
     transaction.payhero_txn_id = response.reference;
     await transaction.save();
 
@@ -308,7 +394,7 @@ app.post('/api/users/deposit', authUser, async (req, res) => {
   }
 });
 
-// REAL Withdrawal - Using PayHero withdraw
+// REAL Withdrawal
 app.post('/api/users/withdraw', authUser, async (req, res) => {
   try {
     const { amount, phone } = req.body;
@@ -321,7 +407,6 @@ app.post('/api/users/withdraw', authUser, async (req, res) => {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
 
-    // Format phone number
     let formattedPhone = phone || req.user.phone;
     formattedPhone = formatPhoneNumber(formattedPhone);
 
@@ -334,7 +419,6 @@ app.post('/api/users/withdraw', authUser, async (req, res) => {
 
     const reference = generateReference('WD', req.user._id);
     
-    // Create transaction record
     const transaction = new Transaction({
       user_id: req.user._id,
       type: 'withdrawal',
@@ -345,12 +429,10 @@ app.post('/api/users/withdraw', authUser, async (req, res) => {
     });
     await transaction.save();
 
-    // Deduct from user balance immediately
     await User.findByIdAndUpdate(req.user._id, {
       $inc: { wallet_balance: -amount }
     });
 
-    // REAL Withdrawal using PayHero
     const withdrawPayload = {
       phone_number: formattedPhone,
       amount: parseFloat(netAmount),
@@ -380,7 +462,6 @@ app.post('/api/users/withdraw', authUser, async (req, res) => {
   } catch (error) {
     console.error('❌ Withdrawal Error:', error);
     
-    // Refund user balance if withdrawal failed
     await User.findByIdAndUpdate(req.user._id, {
       $inc: { wallet_balance: amount }
     });
@@ -445,9 +526,9 @@ app.post('/api/users/transfer', authUser, async (req, res) => {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
 
-    const recipient = await User.findOne({ phone: recipient_phone, is_active: true });
+    const recipient = await User.findOne({ phone: recipient_phone, is_active: true, is_blocked: false });
     if (!recipient) {
-      return res.status(404).json({ error: 'Recipient not found' });
+      return res.status(404).json({ error: 'Recipient not found or account inactive' });
     }
 
     if (recipient._id.toString() === req.user._id.toString()) {
@@ -480,7 +561,6 @@ app.post('/api/users/transfer', authUser, async (req, res) => {
       description: description || `Transfer from ${req.user.phone}`
     });
 
-    // Update balances
     await User.findByIdAndUpdate(req.user._id, {
       $inc: { wallet_balance: -amount }
     });
@@ -511,7 +591,7 @@ app.post('/api/users/transfer', authUser, async (req, res) => {
   }
 });
 
-// ==================== ADMIN ROUTES ====================
+// ==================== ENHANCED ADMIN ROUTES ====================
 
 // Admin Login
 app.post('/api/admin/login', async (req, res) => {
@@ -527,7 +607,9 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid admin credentials' });
     }
 
-    const token = jwt.sign({ adminId: admin._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ adminId: admin._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+
+    await logAdminAction(admin._id, 'login', 'system', null, { email }, req);
 
     res.json({
       message: 'Admin login successful',
@@ -546,18 +628,38 @@ app.post('/api/admin/login', async (req, res) => {
   }
 });
 
+// Get Admin Profile
+app.get('/api/admin/profile', authAdmin, async (req, res) => {
+  res.json({
+    admin: {
+      id: req.admin._id,
+      name: req.admin.name,
+      email: req.admin.email,
+      role: req.admin.role,
+      permissions: req.admin.permissions,
+      last_login: req.admin.last_login,
+      createdAt: req.admin.createdAt
+    }
+  });
+});
+
 // Get All Users (Admin Only)
-app.get('/api/admin/users', authAdmin, async (req, res) => {
+app.get('/api/admin/users', authAdmin, requirePermission('view_users'), async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = '' } = req.query;
+    const { page = 1, limit = 10, search = '', status = '' } = req.query;
     
-    const query = search ? {
-      $or: [
+    const query = {};
+    if (search) {
+      query.$or = [
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
         { phone: { $regex: search, $options: 'i' } }
-      ]
-    } : {};
+      ];
+    }
+    if (status === 'active') query.is_active = true;
+    if (status === 'inactive') query.is_active = false;
+    if (status === 'blocked') query.is_blocked = true;
+    if (status === 'verified') query.is_verified = true;
 
     const users = await User.find(query)
       .select('-password')
@@ -566,6 +668,8 @@ app.get('/api/admin/users', authAdmin, async (req, res) => {
       .skip((page - 1) * limit);
 
     const total = await User.countDocuments(query);
+
+    await logAdminAction(req.admin._id, 'view_users', 'system', null, { search, status }, req);
 
     res.json({
       users,
@@ -579,17 +683,114 @@ app.get('/api/admin/users', authAdmin, async (req, res) => {
   }
 });
 
-// Get All Transactions (Admin Only)
-app.get('/api/admin/transactions', authAdmin, async (req, res) => {
+// Block/Unblock User
+app.patch('/api/admin/users/:userId/block', authAdmin, requirePermission('manage_users'), async (req, res) => {
   try {
-    const { page = 1, limit = 10, type, status } = req.query;
+    const { userId } = req.params;
+    const { blocked, reason } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.is_blocked = blocked;
+    user.blocked_reason = reason || '';
+    await user.save();
+
+    await logAdminAction(req.admin._id, blocked ? 'block_user' : 'unblock_user', 'user', userId, { reason }, req);
+
+    res.json({
+      message: `User ${blocked ? 'blocked' : 'unblocked'} successfully`,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        is_blocked: user.is_blocked,
+        blocked_reason: user.blocked_reason
+      }
+    });
+  } catch (error) {
+    console.error('Block user error:', error);
+    res.status(500).json({ error: 'Failed to update user status' });
+  }
+});
+
+// Verify User
+app.patch('/api/admin/users/:userId/verify', authAdmin, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { verified } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.is_verified = verified;
+    await user.save();
+
+    await logAdminAction(req.admin._id, verified ? 'verify_user' : 'unverify_user', 'user', userId, null, req);
+
+    res.json({
+      message: `User ${verified ? 'verified' : 'unverified'} successfully`,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        is_verified: user.is_verified
+      }
+    });
+  } catch (error) {
+    console.error('Verify user error:', error);
+    res.status(500).json({ error: 'Failed to update user verification' });
+  }
+});
+
+// Update User KYC Status
+app.patch('/api/admin/users/:userId/kyc', authAdmin, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { status, notes } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.kyc_status = status;
+    await user.save();
+
+    await logAdminAction(req.admin._id, 'update_kyc_status', 'user', userId, { status, notes }, req);
+
+    res.json({
+      message: `User KYC status updated to ${status}`,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        kyc_status: user.kyc_status
+      }
+    });
+  } catch (error) {
+    console.error('KYC update error:', error);
+    res.status(500).json({ error: 'Failed to update KYC status' });
+  }
+});
+
+// Get All Transactions (Admin Only)
+app.get('/api/admin/transactions', authAdmin, requirePermission('view_transactions'), async (req, res) => {
+  try {
+    const { page = 1, limit = 10, type, status, userId } = req.query;
     
     const query = {};
     if (type) query.type = type;
     if (status) query.status = status;
+    if (userId) query.user_id = userId;
 
     const transactions = await Transaction.find(query)
       .populate('user_id', 'name email phone')
+      .populate('processed_by', 'name email')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -606,6 +807,8 @@ app.get('/api/admin/transactions', authAdmin, async (req, res) => {
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
 
+    await logAdminAction(req.admin._id, 'view_transactions', 'system', null, { type, status, userId }, req);
+
     res.json({
       transactions,
       totalPages: Math.ceil(total / limit),
@@ -620,11 +823,77 @@ app.get('/api/admin/transactions', authAdmin, async (req, res) => {
   }
 });
 
+// Process Withdrawal on Behalf of User (Manual Processing)
+app.post('/api/admin/transactions/:transactionId/process', authAdmin, requirePermission('process_withdrawals'), async (req, res) => {
+  try {
+    const { transactionId } = req.params;
+    const { action, notes } = req.body; // action: 'approve', 'reject', 'cancel'
+
+    const transaction = await Transaction.findById(transactionId).populate('user_id');
+    if (!transaction) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    if (transaction.type !== 'withdrawal') {
+      return res.status(400).json({ error: 'Only withdrawal transactions can be processed manually' });
+    }
+
+    let updateData = { admin_notes: notes, processed_by: req.admin._id };
+
+    if (action === 'approve') {
+      // Process withdrawal via PayHero
+      const withdrawPayload = {
+        phone_number: transaction.user_id.phone,
+        amount: parseFloat(transaction.amount - transaction.commission),
+        provider: process.env.DEFAULT_PROVIDER || 'm-pesa',
+        channel_id: process.env.CHANNEL_ID,
+        external_reference: transaction.external_reference
+      };
+
+      const response = await client.withdraw(withdrawPayload);
+      updateData.status = 'successful';
+      updateData.payhero_txn_id = response.reference;
+
+    } else if (action === 'reject') {
+      // Refund user balance
+      await User.findByIdAndUpdate(transaction.user_id, {
+        $inc: { wallet_balance: transaction.amount }
+      });
+      updateData.status = 'failed';
+
+    } else if (action === 'cancel') {
+      // Refund user balance
+      await User.findByIdAndUpdate(transaction.user_id, {
+        $inc: { wallet_balance: transaction.amount }
+      });
+      updateData.status = 'cancelled';
+    }
+
+    await Transaction.findByIdAndUpdate(transactionId, updateData);
+
+    await logAdminAction(req.admin._id, `manual_${action}_withdrawal`, 'transaction', transactionId, { notes }, req);
+
+    res.json({
+      message: `Withdrawal ${action}d successfully`,
+      transaction: {
+        id: transaction._id,
+        status: updateData.status,
+        admin_notes: notes
+      }
+    });
+  } catch (error) {
+    console.error('Manual withdrawal processing error:', error);
+    res.status(500).json({ error: error.message || 'Failed to process withdrawal' });
+  }
+});
+
 // Admin Dashboard Stats
-app.get('/api/admin/stats', authAdmin, async (req, res) => {
+app.get('/api/admin/stats', authAdmin, requirePermission('view_reports'), async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
     const activeUsers = await User.countDocuments({ is_active: true });
+    const blockedUsers = await User.countDocuments({ is_blocked: true });
+    const verifiedUsers = await User.countDocuments({ is_verified: true });
     const totalTransactions = await Transaction.countDocuments();
     
     const totalVolume = await Transaction.aggregate([
@@ -637,6 +906,11 @@ app.get('/api/admin/stats', authAdmin, async (req, res) => {
       { $group: { _id: null, total: { $sum: '$commission' } } }
     ]);
 
+    const pendingWithdrawals = await Transaction.countDocuments({ 
+      type: 'withdrawal', 
+      status: 'pending' 
+    });
+
     const balance = await client.serviceWalletBalance();
 
     const recentTransactions = await Transaction.find()
@@ -644,15 +918,20 @@ app.get('/api/admin/stats', authAdmin, async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(5);
 
+    await logAdminAction(req.admin._id, 'view_dashboard_stats', 'system', null, null, req);
+
     res.json({
       users: {
         total: totalUsers,
-        active: activeUsers
+        active: activeUsers,
+        blocked: blockedUsers,
+        verified: verifiedUsers
       },
       transactions: {
         total: totalTransactions,
         volume: Math.abs(totalVolume[0]?.total || 0),
-        commission: totalCommission[0]?.total || 0
+        commission: totalCommission[0]?.total || 0,
+        pending_withdrawals: pendingWithdrawals
       },
       system: {
         balance: balance.balance || 0,
@@ -666,9 +945,36 @@ app.get('/api/admin/stats', authAdmin, async (req, res) => {
   }
 });
 
+// Get Admin Activity Logs
+app.get('/api/admin/logs', authAdmin, requirePermission('view_reports'), async (req, res) => {
+  try {
+    const { page = 1, limit = 20, adminId } = req.query;
+    
+    const query = {};
+    if (adminId) query.admin_id = adminId;
+
+    const logs = await AdminLog.find(query)
+      .populate('admin_id', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await AdminLog.countDocuments(query);
+
+    res.json({
+      logs,
+      totalPages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+      total
+    });
+  } catch (error) {
+    console.error('Admin logs error:', error);
+    res.status(500).json({ error: 'Failed to fetch admin logs' });
+  }
+});
+
 // ==================== TRANSACTION STATUS ====================
 
-// Transaction Status Endpoint - REAL IMPLEMENTATION (Same as your working code)
 app.get('/api/transaction-status/:reference', async (req, res) => {
   try {
     const { reference } = req.params;
@@ -700,7 +1006,6 @@ app.get('/api/transaction-status/:reference', async (req, res) => {
 
 // ==================== WEBHOOKS & HEALTH CHECKS ====================
 
-// PayHero Webhook for transaction callbacks
 app.post('/webhooks/payhero', async (req, res) => {
   try {
     const { reference, status, transactionId, amount } = req.body;
@@ -734,10 +1039,9 @@ app.post('/webhooks/payhero', async (req, res) => {
   }
 });
 
-// Health check endpoint - Same as your working code
+// Health check endpoint
 app.get('/api/health', async (req, res) => {
   try {
-    // Test the connection by checking service wallet balance
     const balance = await client.serviceWalletBalance();
     
     res.json({
@@ -758,7 +1062,6 @@ app.get('/api/health', async (req, res) => {
 
 // ==================== INITIALIZATION ====================
 
-// Initialize default admin
 async function initializeDefaults() {
   try {
     // Drop problematic indexes first
@@ -769,16 +1072,21 @@ async function initializeDefaults() {
       console.log('ℹ️  No problematic index to drop');
     }
 
-    // Create default admin
-    const adminExists = await Admin.findOne({ email: 'admin@berapay.com' });
-    if (!adminExists) {
-      const admin = new Admin({
-        name: 'System Administrator',
-        email: 'admin@berapay.com',
-        password: 'admin123'
+    // Create super admin from environment variables
+    const superAdminExists = await Admin.findOne({ email: process.env.ADMIN_EMAIL });
+    if (!superAdminExists) {
+      const superAdmin = new Admin({
+        name: process.env.ADMIN_NAME || 'System Administrator',
+        email: process.env.ADMIN_EMAIL,
+        password: process.env.ADMIN_PASSWORD,
+        role: 'super_admin',
+        permissions: [
+          'view_users', 'manage_users', 'view_transactions', 'manage_transactions',
+          'process_withdrawals', 'view_reports', 'system_settings', 'manage_admins'
+        ]
       });
-      await admin.save();
-      console.log('✅ Default admin created: admin@berapay.com / admin123');
+      await superAdmin.save();
+      console.log('✅ Super Admin created from environment variables');
     }
 
     console.log('✅ System initialization completed');
@@ -800,13 +1108,12 @@ mongoose.connect(process.env.MONGODB_URI)
   })
   .then(() => {
     app.listen(port, () => {
-      console.log('🚀 BeraPay - REAL IMPLEMENTATION');
+      console.log('🚀 BeraPay - Enhanced Admin System');
       console.log('📍 Server running on port:', port);
       console.log('🔑 Account ID:', process.env.CHANNEL_ID);
-      console.log('📱 Provider:', process.env.DEFAULT_PROVIDER);
+      console.log('👑 Super Admin:', process.env.ADMIN_EMAIL);
       console.log('🌐 Access: http://localhost:' + port);
       console.log('❤️  Health: http://localhost:' + port + '/api/health');
-      console.log('🔑 Admin Login: admin@berapay.com / admin123');
     });
   })
   .catch(err => {
