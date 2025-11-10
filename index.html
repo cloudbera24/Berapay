@@ -116,6 +116,7 @@
             border-bottom: 1px solid rgba(255,255,255,0.1);
             transition: all 0.3s ease;
             font-weight: 500;
+            cursor: pointer;
         }
         
         .admin-sidebar .nav-link:hover,
@@ -179,20 +180,6 @@
             box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
         }
         
-        .nav-tabs .nav-link {
-            border: none;
-            padding: 15px 25px;
-            font-weight: 600;
-            color: var(--dark);
-            border-bottom: 3px solid transparent;
-        }
-        
-        .nav-tabs .nav-link.active {
-            color: var(--primary);
-            border-bottom: 3px solid var(--primary);
-            background: transparent;
-        }
-        
         .alert-position {
             position: fixed;
             top: 20px;
@@ -234,6 +221,10 @@
             padding: 4px 8px;
             border-radius: 12px;
         }
+        
+        .btn-loading {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -263,7 +254,7 @@
     </nav>
 
     <!-- Hero Section -->
-    <section class="hero-section" id="hero-section">
+    <section class="hero-section active-section" id="hero-section">
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-lg-6">
@@ -352,7 +343,12 @@
                                     </div>
                                 </div>
                                 <button type="submit" class="btn btn-gradient w-100 py-3 fw-semibold">
-                                    <i class="fas fa-sign-in-alt me-2"></i>Login to Dashboard
+                                    <span class="btn-text">
+                                        <i class="fas fa-sign-in-alt me-2"></i>Login to Dashboard
+                                    </span>
+                                    <span class="btn-loading">
+                                        <i class="fas fa-spinner fa-spin me-2"></i>Logging in...
+                                    </span>
                                 </button>
                             </form>
                             <div class="text-center mt-4">
@@ -414,7 +410,12 @@
                                     </div>
                                 </div>
                                 <button type="submit" class="btn btn-success w-100 py-3 fw-semibold">
-                                    <i class="fas fa-user-plus me-2"></i>Create Account
+                                    <span class="btn-text">
+                                        <i class="fas fa-user-plus me-2"></i>Create Account
+                                    </span>
+                                    <span class="btn-loading">
+                                        <i class="fas fa-spinner fa-spin me-2"></i>Creating account...
+                                    </span>
                                 </button>
                             </form>
                             <div class="text-center mt-4">
@@ -459,7 +460,12 @@
                                     </div>
                                 </div>
                                 <button type="submit" class="btn btn-dark w-100 py-3 fw-semibold">
-                                    <i class="fas fa-sign-in-alt me-2"></i>Admin Login
+                                    <span class="btn-text">
+                                        <i class="fas fa-sign-in-alt me-2"></i>Admin Login
+                                    </span>
+                                    <span class="btn-loading">
+                                        <i class="fas fa-spinner fa-spin me-2"></i>Logging in...
+                                    </span>
                                 </button>
                             </form>
                             <div class="text-center mt-4">
@@ -486,22 +492,22 @@
                         <small id="userEmail" class="text-muted">user@email.com</small>
                     </div>
                     <nav class="nav flex-column mt-3">
-                        <a class="nav-link active" href="#" onclick="showUserTab('overview')">
+                        <a class="nav-link active" onclick="showUserTab('overview')">
                             <i class="fas fa-home me-3"></i>Overview
                         </a>
-                        <a class="nav-link" href="#" onclick="showUserTab('deposit')">
+                        <a class="nav-link" onclick="showUserTab('deposit')">
                             <i class="fas fa-arrow-down me-3"></i>Deposit
                         </a>
-                        <a class="nav-link" href="#" onclick="showUserTab('withdraw')">
+                        <a class="nav-link" onclick="showUserTab('withdraw')">
                             <i class="fas fa-arrow-up me-3"></i>Withdraw
                         </a>
-                        <a class="nav-link" href="#" onclick="showUserTab('transfer')">
+                        <a class="nav-link" onclick="showUserTab('transfer')">
                             <i class="fas fa-exchange-alt me-3"></i>Transfer
                         </a>
-                        <a class="nav-link" href="#" onclick="showUserTab('transactions')">
+                        <a class="nav-link" onclick="showUserTab('transactions')">
                             <i class="fas fa-history me-3"></i>Transactions
                         </a>
-                        <a class="nav-link mt-4" href="#" onclick="logout()">
+                        <a class="nav-link mt-4" onclick="logout()">
                             <i class="fas fa-sign-out-alt me-3"></i>Logout
                         </a>
                     </nav>
@@ -605,43 +611,14 @@
                                                     <small class="form-text text-muted">Minimum deposit: KES 1</small>
                                                 </div>
                                                 <button type="submit" class="btn btn-gradient w-100 py-3 fw-semibold">
-                                                    <i class="fas fa-paper-plane me-2"></i>Initiate STK Push
+                                                    <span class="btn-text">
+                                                        <i class="fas fa-paper-plane me-2"></i>Initiate STK Push
+                                                    </span>
+                                                    <span class="btn-loading">
+                                                        <i class="fas fa-spinner fa-spin me-2"></i>Processing...
+                                                    </span>
                                                 </button>
                                             </form>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-lg-4">
-                                    <div class="feature-card">
-                                        <div class="card-body">
-                                            <h6 class="fw-semibold mb-3">How it works</h6>
-                                            <div class="d-flex align-items-start mb-3">
-                                                <div class="bg-primary rounded-circle p-2 me-3">
-                                                    <i class="fas fa-1 text-white"></i>
-                                                </div>
-                                                <div>
-                                                    <small class="fw-semibold">Enter Details</small>
-                                                    <p class="text-muted small mb-0">Provide phone and amount</p>
-                                                </div>
-                                            </div>
-                                            <div class="d-flex align-items-start mb-3">
-                                                <div class="bg-primary rounded-circle p-2 me-3">
-                                                    <i class="fas fa-2 text-white"></i>
-                                                </div>
-                                                <div>
-                                                    <small class="fw-semibold">STK Push</small>
-                                                    <p class="text-muted small mb-0">Check your phone for prompt</p>
-                                                </div>
-                                            </div>
-                                            <div class="d-flex align-items-start">
-                                                <div class="bg-primary rounded-circle p-2 me-3">
-                                                    <i class="fas fa-3 text-white"></i>
-                                                </div>
-                                                <div>
-                                                    <small class="fw-semibold">Complete</small>
-                                                    <p class="text-muted small mb-0">Enter PIN to confirm</p>
-                                                </div>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -688,7 +665,12 @@
                                                     </small>
                                                 </div>
                                                 <button type="submit" class="btn btn-success w-100 py-3 fw-semibold">
-                                                    <i class="fas fa-money-bill-wave me-2"></i>Initiate Withdrawal
+                                                    <span class="btn-text">
+                                                        <i class="fas fa-money-bill-wave me-2"></i>Initiate Withdrawal
+                                                    </span>
+                                                    <span class="btn-loading">
+                                                        <i class="fas fa-spinner fa-spin me-2"></i>Processing...
+                                                    </span>
                                                 </button>
                                             </form>
                                         </div>
@@ -739,7 +721,12 @@
                                                     </small>
                                                 </div>
                                                 <button type="submit" class="btn btn-info w-100 py-3 fw-semibold">
-                                                    <i class="fas fa-paper-plane me-2"></i>Send Transfer
+                                                    <span class="btn-text">
+                                                        <i class="fas fa-paper-plane me-2"></i>Send Transfer
+                                                    </span>
+                                                    <span class="btn-loading">
+                                                        <i class="fas fa-spinner fa-spin me-2"></i>Processing...
+                                                    </span>
                                                 </button>
                                             </form>
                                         </div>
@@ -796,19 +783,19 @@
                         <small id="adminEmail" class="text-muted">admin@berapay.com</small>
                     </div>
                     <nav class="nav flex-column mt-3">
-                        <a class="nav-link active" href="#" onclick="showAdminTab('admin-overview')">
+                        <a class="nav-link active" onclick="showAdminTab('admin-overview')">
                             <i class="fas fa-chart-bar me-3"></i>Dashboard
                         </a>
-                        <a class="nav-link" href="#" onclick="showAdminTab('admin-users')">
+                        <a class="nav-link" onclick="showAdminTab('admin-users')">
                             <i class="fas fa-users me-3"></i>Users
                         </a>
-                        <a class="nav-link" href="#" onclick="showAdminTab('admin-transactions')">
+                        <a class="nav-link" onclick="showAdminTab('admin-transactions')">
                             <i class="fas fa-list me-3"></i>Transactions
                         </a>
-                        <a class="nav-link" href="#" onclick="showAdminTab('admin-reports')">
+                        <a class="nav-link" onclick="showAdminTab('admin-reports')">
                             <i class="fas fa-chart-pie me-3"></i>Reports
                         </a>
-                        <a class="nav-link mt-4" href="#" onclick="adminLogout()">
+                        <a class="nav-link mt-4" onclick="adminLogout()">
                             <i class="fas fa-sign-out-alt me-3"></i>Logout
                         </a>
                     </nav>
@@ -967,13 +954,24 @@
 
         // Show specific section
         function showSection(section) {
-            document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
-            document.getElementById(section + '-section').classList.add('active-section');
+            console.log('Showing section:', section);
+            document.querySelectorAll('.section').forEach(s => {
+                s.style.display = 'none';
+                s.classList.remove('active-section');
+            });
+            const targetSection = document.getElementById(section + '-section');
+            if (targetSection) {
+                targetSection.style.display = 'block';
+                targetSection.classList.add('active-section');
+            }
         }
 
         // Show user tab
         function showUserTab(tab) {
-            document.querySelectorAll('.user-tab-content').forEach(t => t.style.display = 'none');
+            console.log('Showing user tab:', tab);
+            document.querySelectorAll('.user-tab-content').forEach(t => {
+                t.style.display = 'none';
+            });
             document.getElementById(tab + '-tab').style.display = 'block';
             
             // Update active nav link
@@ -992,7 +990,10 @@
 
         // Show admin tab
         function showAdminTab(tab) {
-            document.querySelectorAll('.admin-tab-content').forEach(t => t.style.display = 'none');
+            console.log('Showing admin tab:', tab);
+            document.querySelectorAll('.admin-tab-content').forEach(t => {
+                t.style.display = 'none';
+            });
             document.getElementById(tab + '-tab').style.display = 'block';
             
             // Update active nav link
@@ -1019,7 +1020,7 @@
             alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
             alertDiv.innerHTML = `
                 <div class="d-flex align-items-center">
-                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
                     <div>${message}</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -1031,6 +1032,22 @@
                     alertDiv.remove();
                 }
             }, 5000);
+        }
+
+        // Toggle loading state
+        function toggleLoading(button, isLoading) {
+            const btnText = button.querySelector('.btn-text');
+            const btnLoading = button.querySelector('.btn-loading');
+            
+            if (isLoading) {
+                btnText.style.display = 'none';
+                btnLoading.style.display = 'inline';
+                button.disabled = true;
+            } else {
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+                button.disabled = false;
+            }
         }
 
         // API call helper
@@ -1062,6 +1079,9 @@
         // User registration
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const button = e.target.querySelector('button[type="submit"]');
+            toggleLoading(button, true);
+
             const formData = {
                 name: document.getElementById('registerName').value,
                 email: document.getElementById('registerEmail').value,
@@ -1077,12 +1097,19 @@
                 currentUser = data;
                 showUserDashboard();
                 showAlert('Registration successful! Welcome to BeraPay.', 'success');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Registration error:', error);
+            } finally {
+                toggleLoading(button, false);
+            }
         });
 
         // User login
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const button = e.target.querySelector('button[type="submit"]');
+            toggleLoading(button, true);
+
             const formData = {
                 email: document.getElementById('loginEmail').value,
                 password: document.getElementById('loginPassword').value
@@ -1096,12 +1123,19 @@
                 currentUser = data;
                 showUserDashboard();
                 showAlert('Login successful! Welcome back.', 'success');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Login error:', error);
+            } finally {
+                toggleLoading(button, false);
+            }
         });
 
         // Admin login
         document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const button = e.target.querySelector('button[type="submit"]');
+            toggleLoading(button, true);
+
             const formData = {
                 email: document.getElementById('adminEmail').value,
                 password: document.getElementById('adminPassword').value
@@ -1115,12 +1149,19 @@
                 currentAdmin = data;
                 showAdminDashboard();
                 showAlert('Admin login successful!', 'success');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Admin login error:', error);
+            } finally {
+                toggleLoading(button, false);
+            }
         });
 
         // Deposit
         document.getElementById('depositForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const button = e.target.querySelector('button[type="submit"]');
+            toggleLoading(button, true);
+
             const formData = {
                 phone: document.getElementById('depositPhone').value,
                 amount: parseFloat(document.getElementById('depositAmount').value)
@@ -1134,12 +1175,19 @@
                 showAlert('STK Push initiated! Check your phone to complete the deposit.', 'success');
                 document.getElementById('depositForm').reset();
                 loadBalance();
-            } catch (error) {}
+            } catch (error) {
+                console.error('Deposit error:', error);
+            } finally {
+                toggleLoading(button, false);
+            }
         });
 
         // Withdraw
         document.getElementById('withdrawForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const button = e.target.querySelector('button[type="submit"]');
+            toggleLoading(button, true);
+
             const formData = {
                 phone: document.getElementById('withdrawPhone').value,
                 amount: parseFloat(document.getElementById('withdrawAmount').value)
@@ -1153,12 +1201,19 @@
                 showAlert(`Withdrawal initiated! Commission: KES ${data.commission}, Net Amount: KES ${data.netAmount}`, 'success');
                 document.getElementById('withdrawForm').reset();
                 loadBalance();
-            } catch (error) {}
+            } catch (error) {
+                console.error('Withdrawal error:', error);
+            } finally {
+                toggleLoading(button, false);
+            }
         });
 
         // Transfer
         document.getElementById('transferForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const button = e.target.querySelector('button[type="submit"]');
+            toggleLoading(button, true);
+
             const formData = {
                 recipient_phone: document.getElementById('transferPhone').value,
                 amount: parseFloat(document.getElementById('transferAmount').value),
@@ -1174,16 +1229,24 @@
                 document.getElementById('transferForm').reset();
                 loadBalance();
                 loadTransactions();
-            } catch (error) {}
+            } catch (error) {
+                console.error('Transfer error:', error);
+            } finally {
+                toggleLoading(button, false);
+            }
         });
 
         // Load user balance
         async function loadBalance() {
             try {
                 const data = await apiCall('/api/users/balance');
-                document.getElementById('walletBalance').textContent = `KES ${currentUser.user.wallet_balance.toFixed(2)}`;
+                if (currentUser && currentUser.user) {
+                    document.getElementById('walletBalance').textContent = `KES ${currentUser.user.wallet_balance.toFixed(2)}`;
+                }
                 document.getElementById('systemBalance').textContent = `KES ${data.system_balance.toFixed(2)}`;
-            } catch (error) {}
+            } catch (error) {
+                console.error('Balance error:', error);
+            }
         }
 
         // Load transactions
@@ -1420,8 +1483,7 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            // Show hero section by default
-            showSection('hero');
+            console.log('BeraPay initialized');
             
             // Auto-format phone numbers
             const phoneInputs = document.querySelectorAll('input[type="tel"]');
@@ -1436,4 +1498,4 @@
         });
     </script>
 </body>
-</html>
+                                        </html>
