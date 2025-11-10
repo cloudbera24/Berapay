@@ -3,360 +3,233 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BeraPay - Digital Wallet</title>
+    <title>BeraPay - Digital Wallet System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .hero-section { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 100px 0; }
-        .feature-card { border: none; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: transform 0.3s; }
-        .feature-card:hover { transform: translateY(-5px); }
-        .wallet-balance { font-size: 2.5rem; font-weight: bold; color: #28a745; }
-        .transaction-item { border-left: 4px solid #007bff; padding-left: 15px; margin-bottom: 15px; }
-        .transaction-item.withdrawal { border-left-color: #dc3545; }
-        .dashboard-nav { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .section { display: none; }
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
+            --dark: #343a40;
+            --light: #f8f9fa;
+        }
+        
+        .hero-section {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 100px 0;
+            min-height: 80vh;
+            display: flex;
+            align-items: center;
+        }
+        
+        .feature-card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            background: white;
+            margin-bottom: 20px;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+        
+        .wallet-balance {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--success);
+        }
+        
+        .transaction-item {
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            margin-bottom: 10px;
+            background: var(--light);
+            border-radius: 8px;
+        }
+        
+        .transaction-item.withdrawal {
+            border-left-color: var(--danger);
+        }
+        
+        .transaction-item.transfer {
+            border-left-color: var(--info);
+        }
+        
+        .dashboard-nav {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            display: none;
+        }
+        
+        .active-section {
+            display: block;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .admin-sidebar {
+            background: linear-gradient(180deg, var(--dark) 0%, #495057 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 0;
+        }
+        
+        .admin-sidebar .nav-link {
+            color: rgba(255,255,255,0.8);
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .admin-sidebar .nav-link:hover,
+        .admin-sidebar .nav-link.active {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .admin-content {
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
+    <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark dashboard-nav">
         <div class="container">
-            <a class="navbar-brand" href="#"><i class="fas fa-wallet"></i> BeraPay</a>
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-wallet me-2"></i>
+                <strong>BeraPay</strong>
+            </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="#" onclick="showSection('login')">Login</a>
-                <a class="nav-link" href="#" onclick="showSection('register')">Register</a>
-                <a class="nav-link" href="#" onclick="showSection('admin-login')">Admin</a>
+                <a class="nav-link" href="#" onclick="showSection('login')">
+                    <i class="fas fa-sign-in-alt me-1"></i> User Login
+                </a>
+                <a class="nav-link" href="#" onclick="showSection('admin-login')">
+                    <i class="fas fa-user-shield me-1"></i> Admin Login
+                </a>
+                <a class="nav-link" href="#" onclick="showSection('register')">
+                    <i class="fas fa-user-plus me-1"></i> Register
+                </a>
             </div>
         </div>
     </nav>
 
-    <section class="hero-section text-center">
+    <!-- Hero Section -->
+    <section class="hero-section text-center" id="hero-section">
         <div class="container">
             <h1 class="display-4 mb-4">Welcome to BeraPay</h1>
-            <p class="lead mb-4">Secure Digital Wallet with M-Pesa Integration</p>
-            <button class="btn btn-light btn-lg" onclick="showSection('register')">Get Started</button>
+            <p class="lead mb-4">Secure, Fast, and Reliable Digital Wallet with M-Pesa Integration</p>
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="feature-card">
+                                <div class="card-body">
+                                    <i class="fas fa-mobile-alt fa-3x text-primary mb-3"></i>
+                                    <h5>STK Push</h5>
+                                    <p>Instant deposits via M-Pesa STK push</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="feature-card">
+                                <div class="card-body">
+                                    <i class="fas fa-money-bill-wave fa-3x text-success mb-3"></i>
+                                    <h5>Withdrawals</h5>
+                                    <p>Withdraw funds directly to M-Pesa</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="feature-card">
+                                <div class="card-body">
+                                    <i class="fas fa-exchange-alt fa-3x text-info mb-3"></i>
+                                    <h5>Transfers</h5>
+                                    <p>Send money to other BeraPay users</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button class="btn btn-light btn-lg mt-4" onclick="showSection('register')">
+                <i class="fas fa-rocket me-2"></i>Get Started
+            </button>
         </div>
     </section>
 
-    <div class="container my-5">
-        <!-- Login Section -->
-        <div id="login-section" class="section">
+    <!-- User Login Section -->
+    <div id="login-section" class="section">
+        <div class="container my-5">
             <div class="row justify-content-center">
                 <div class="col-md-6">
-                    <div class="card feature-card">
+                    <div class="feature-card">
                         <div class="card-body p-5">
-                            <h3 class="card-title text-center mb-4">Login</h3>
+                            <h3 class="card-title text-center mb-4">
+                                <i class="fas fa-sign-in-alt me-2"></i>User Login
+                            </h3>
                             <form id="loginForm">
                                 <div class="mb-3">
-                                    <label class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="loginEmail" required>
+                                    <label class="form-label">Email Address</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                        <input type="email" class="form-control" id="loginEmail" placeholder="Enter your email" required>
+                                    </div>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Password</label>
-                                    <input type="password" class="form-control" id="loginPassword" required>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                        <input type="password" class="form-control" id="loginPassword" placeholder="Enter your password" required>
+                                    </div>
                                 </div>
-                                <button type="submit" class="btn btn-primary w-100">Login</button>
+                                <button type="submit" class="btn btn-primary w-100 py-2">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Login to Dashboard
+                                </button>
                             </form>
                             <div class="text-center mt-3">
-                                <a href="#" onclick="showSection('register')">Don't have an account? Register</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Register Section -->
-        <div id="register-section" class="section">
-            <div class="row justify-content-center">
-                <div class="col-md-6">
-                    <div class="card feature-card">
-                        <div class="card-body p-5">
-                            <h3 class="card-title text-center mb-4">Register</h3>
-                            <form id="registerForm">
-                                <div class="mb-3">
-                                    <label class="form-label">Full Name</label>
-                                    <input type="text" class="form-control" id="registerName" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="registerEmail" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Phone Number</label>
-                                    <input type="tel" class="form-control" id="registerPhone" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Password</label>
-                                    <input type="password" class="form-control" id="registerPassword" required>
-                                </div>
-                                <button type="submit" class="btn btn-primary w-100">Create Account</button>
-                            </form>
-                            <div class="text-center mt-3">
-                                <a href="#" onclick="showSection('login')">Already have an account? Login</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Admin Login -->
-        <div id="admin-login-section" class="section">
-            <div class="row justify-content-center">
-                <div class="col-md-6">
-                    <div class="card feature-card">
-                        <div class="card-body p-5">
-                            <h3 class="card-title text-center mb-4">Admin Login</h3>
-                            <form id="adminLoginForm">
-                                <div class="mb-3">
-                                    <label class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="adminEmail" value="admin@berapay.com" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Password</label>
-                                    <input type="password" class="form-control" id="adminPassword" value="admin123" required>
-                                </div>
-                                <button type="submit" class="btn btn-primary w-100">Admin Login</button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- User Dashboard -->
-        <div id="dashboard-section" class="section">
-            <div class="row">
-                <div class="col-md-3">
-                    <div class="card feature-card">
-                        <div class="card-body">
-                            <h5 class="card-title">Navigation</h5>
-                            <div class="list-group list-group-flush">
-                                <a href="#" class="list-group-item list-group-item-action active" onclick="showTab('overview')">
-                                    <i class="fas fa-home"></i> Overview
+                                <a href="#" onclick="showSection('register')" class="text-decoration-none">
+                                    Don't have an account? Register here
                                 </a>
-                                <a href="#" class="list-group-item list-group-item-action" onclick="showTab('deposit')">
-                                    <i class="fas fa-arrow-down"></i> Deposit
-                                </a>
-                                <a href="#" class="list-group-item list-group-item-action" onclick="showTab('withdraw')">
-                                    <i class="fas fa-arrow-up"></i> Withdraw
-                                </a>
-                                <a href="#" class="list-group-item list-group-item-action" onclick="showTab('transfer')">
-                                    <i class="fas fa-exchange-alt"></i> Transfer
-                                </a>
-                                <a href="#" class="list-group-item list-group-item-action" onclick="showTab('transactions')">
-                                    <i class="fas fa-history"></i> Transactions
-                                </a>
-                                <a href="#" class="list-group-item list-group-item-action" onclick="logout()">
-                                    <i class="fas fa-sign-out-alt"></i> Logout
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-9">
-                    <!-- Overview Tab -->
-                    <div id="overview-tab" class="tab-content">
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="card feature-card">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title">Wallet Balance</h6>
-                                        <div class="wallet-balance" id="walletBalance">KES 0.00</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="card feature-card">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title">System Balance</h6>
-                                        <div class="wallet-balance" id="systemBalance">KES 0.00</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card feature-card">
-                            <div class="card-body">
-                                <h5 class="card-title">Quick Actions</h5>
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <button class="btn btn-primary w-100 mb-2" onclick="showTab('deposit')">
-                                            <i class="fas fa-arrow-down"></i> Deposit
-                                        </button>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <button class="btn btn-success w-100 mb-2" onclick="showTab('withdraw')">
-                                            <i class="fas fa-arrow-up"></i> Withdraw
-                                        </button>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <button class="btn btn-info w-100 mb-2" onclick="showTab('transfer')">
-                                            <i class="fas fa-exchange-alt"></i> Transfer
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Deposit Tab -->
-                    <div id="deposit-tab" class="tab-content" style="display: none;">
-                        <div class="card feature-card">
-                            <div class="card-body">
-                                <h5 class="card-title">Deposit Funds</h5>
-                                <form id="depositForm">
-                                    <div class="mb-3">
-                                        <label class="form-label">Phone Number</label>
-                                        <input type="tel" class="form-control" id="depositPhone" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Amount (KES)</label>
-                                        <input type="number" class="form-control" id="depositAmount" min="1" required>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary">Initiate Deposit</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Withdraw Tab -->
-                    <div id="withdraw-tab" class="tab-content" style="display: none;">
-                        <div class="card feature-card">
-                            <div class="card-body">
-                                <h5 class="card-title">Withdraw Funds</h5>
-                                <form id="withdrawForm">
-                                    <div class="mb-3">
-                                        <label class="form-label">Phone Number</label>
-                                        <input type="tel" class="form-control" id="withdrawPhone" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Amount (KES)</label>
-                                        <input type="number" class="form-control" id="withdrawAmount" min="1" required>
-                                    </div>
-                                    <button type="submit" class="btn btn-success">Initiate Withdrawal</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Transfer Tab -->
-                    <div id="transfer-tab" class="tab-content" style="display: none;">
-                        <div class="card feature-card">
-                            <div class="card-body">
-                                <h5 class="card-title">Transfer to User</h5>
-                                <form id="transferForm">
-                                    <div class="mb-3">
-                                        <label class="form-label">Recipient Phone</label>
-                                        <input type="tel" class="form-control" id="transferPhone" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Amount (KES)</label>
-                                        <input type="number" class="form-control" id="transferAmount" min="1" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Description</label>
-                                        <input type="text" class="form-control" id="transferDescription">
-                                    </div>
-                                    <button type="submit" class="btn btn-info">Send Transfer</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Transactions Tab -->
-                    <div id="transactions-tab" class="tab-content" style="display: none;">
-                        <div class="card feature-card">
-                            <div class="card-body">
-                                <h5 class="card-title">Transaction History</h5>
-                                <div id="transactionsList"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Admin Dashboard -->
-        <div id="admin-dashboard-section" class="section">
-            <div class="row">
-                <div class="col-md-3">
-                    <div class="card feature-card">
-                        <div class="card-body">
-                            <h5 class="card-title">Admin Panel</h5>
-                            <div class="list-group list-group-flush">
-                                <a href="#" class="list-group-item list-group-item-action active" onclick="showAdminTab('admin-overview')">
-                                    <i class="fas fa-chart-bar"></i> Overview
-                                </a>
-                                <a href="#" class="list-group-item list-group-item-action" onclick="showAdminTab('admin-users')">
-                                    <i class="fas fa-users"></i> Users
-                                </a>
-                                <a href="#" class="list-group-item list-group-item-action" onclick="showAdminTab('admin-transactions')">
-                                    <i class="fas fa-list"></i> Transactions
-                                </a>
-                                <a href="#" class="list-group-item list-group-item-action" onclick="adminLogout()">
-                                    <i class="fas fa-sign-out-alt"></i> Logout
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-9">
-                    <!-- Admin Overview -->
-                    <div id="admin-overview-tab" class="admin-tab-content">
-                        <div class="row mb-4">
-                            <div class="col-md-3">
-                                <div class="card feature-card">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title">Total Users</h6>
-                                        <div class="wallet-balance" id="totalUsers">0</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card feature-card">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title">Total Volume</h6>
-                                        <div class="wallet-balance" id="totalVolume">KES 0</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card feature-card">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title">Total Commission</h6>
-                                        <div class="wallet-balance" id="totalCommission">KES 0</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card feature-card">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title">System Balance</h6>
-                                        <div class="wallet-balance" id="adminSystemBalance">KES 0</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Admin Users -->
-                    <div id="admin-users-tab" class="admin-tab-content" style="display: none;">
-                        <div class="card feature-card">
-                            <div class="card-body">
-                                <h5 class="card-title">All Users</h5>
-                                <div id="usersList"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Admin Transactions -->
-                    <div id="admin-transactions-tab" class="admin-tab-content" style="display: none;">
-                        <div class="card feature-card">
-                            <div class="card-body">
-                                <h5 class="card-title">All Transactions</h5>
-                                <div id="adminTransactionsList"></div>
                             </div>
                         </div>
                     </div>
@@ -365,40 +238,548 @@
         </div>
     </div>
 
+    <!-- User Registration Section -->
+    <div id="register-section" class="section">
+        <div class="container my-5">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="feature-card">
+                        <div class="card-body p-5">
+                            <h3 class="card-title text-center mb-4">
+                                <i class="fas fa-user-plus me-2"></i>Create Account
+                            </h3>
+                            <form id="registerForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Full Name</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                        <input type="text" class="form-control" id="registerName" placeholder="Enter your full name" required>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Email Address</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                        <input type="email" class="form-control" id="registerEmail" placeholder="Enter your email" required>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Phone Number</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                        <input type="tel" class="form-control" id="registerPhone" placeholder="e.g., 254712345678" required>
+                                    </div>
+                                    <small class="form-text text-muted">Format: 254712345678</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Password</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                        <input type="password" class="form-control" id="registerPassword" placeholder="Create a strong password" required>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-success w-100 py-2">
+                                    <i class="fas fa-user-plus me-2"></i>Create Account
+                                </button>
+                            </form>
+                            <div class="text-center mt-3">
+                                <a href="#" onclick="showSection('login')" class="text-decoration-none">
+                                    Already have an account? Login here
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Login Section -->
+    <div id="admin-login-section" class="section">
+        <div class="container my-5">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="feature-card">
+                        <div class="card-body p-5">
+                            <h3 class="card-title text-center mb-4">
+                                <i class="fas fa-user-shield me-2"></i>Admin Login
+                            </h3>
+                            <form id="adminLoginForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Admin Email</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                        <input type="email" class="form-control" id="adminEmail" value="admin@berapay.com" required>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Password</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                        <input type="password" class="form-control" id="adminPassword" value="admin123" required>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-dark w-100 py-2">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Admin Login
+                                </button>
+                            </form>
+                            <div class="text-center mt-3">
+                                <small class="text-muted">Default credentials: admin@berapay.com / admin123</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Dashboard Section -->
+    <div id="dashboard-section" class="section">
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Sidebar -->
+                <div class="col-md-3 admin-sidebar">
+                    <div class="text-center p-4 border-bottom">
+                        <div class="user-avatar mx-auto mb-3">
+                            <span id="userInitials">U</span>
+                        </div>
+                        <h6 id="userName" class="mb-1">User Name</h6>
+                        <small id="userEmail" class="text-muted">user@email.com</small>
+                    </div>
+                    <nav class="nav flex-column">
+                        <a class="nav-link active" href="#" onclick="showUserTab('overview')">
+                            <i class="fas fa-home me-2"></i>Overview
+                        </a>
+                        <a class="nav-link" href="#" onclick="showUserTab('deposit')">
+                            <i class="fas fa-arrow-down me-2"></i>Deposit
+                        </a>
+                        <a class="nav-link" href="#" onclick="showUserTab('withdraw')">
+                            <i class="fas fa-arrow-up me-2"></i>Withdraw
+                        </a>
+                        <a class="nav-link" href="#" onclick="showUserTab('transfer')">
+                            <i class="fas fa-exchange-alt me-2"></i>Transfer
+                        </a>
+                        <a class="nav-link" href="#" onclick="showUserTab('transactions')">
+                            <i class="fas fa-history me-2"></i>Transactions
+                        </a>
+                        <a class="nav-link" href="#" onclick="logout()">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a>
+                    </nav>
+                </div>
+
+                <!-- Main Content -->
+                <div class="col-md-9 admin-content">
+                    <div class="container-fluid py-4">
+                        <!-- Overview Tab -->
+                        <div id="overview-tab" class="user-tab-content">
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="feature-card">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title text-muted">Wallet Balance</h6>
+                                            <div class="wallet-balance" id="walletBalance">KES 0.00</div>
+                                            <small class="text-muted">Available Balance</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="feature-card">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title text-muted">System Balance</h6>
+                                            <div class="wallet-balance" id="systemBalance">KES 0.00</div>
+                                            <small class="text-muted">BeraPay System</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="feature-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Quick Actions</h5>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <button class="btn btn-primary w-100 mb-2 py-3" onclick="showUserTab('deposit')">
+                                                <i class="fas fa-arrow-down fa-2x mb-2"></i><br>
+                                                Deposit Funds
+                                            </button>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <button class="btn btn-success w-100 mb-2 py-3" onclick="showUserTab('withdraw')">
+                                                <i class="fas fa-arrow-up fa-2x mb-2"></i><br>
+                                                Withdraw Funds
+                                            </button>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <button class="btn btn-info w-100 mb-2 py-3" onclick="showUserTab('transfer')">
+                                                <i class="fas fa-exchange-alt fa-2x mb-2"></i><br>
+                                                Transfer Money
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Deposit Tab -->
+                        <div id="deposit-tab" class="user-tab-content" style="display: none;">
+                            <div class="feature-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-arrow-down text-primary me-2"></i>Deposit Funds
+                                    </h5>
+                                    <p class="text-muted">Deposit money to your wallet via M-Pesa STK Push</p>
+                                    <form id="depositForm">
+                                        <div class="mb-3">
+                                            <label class="form-label">Phone Number</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                                <input type="tel" class="form-control" id="depositPhone" placeholder="254712345678" required>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Amount (KES)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">KES</span>
+                                                <input type="number" class="form-control" id="depositAmount" min="1" placeholder="Enter amount" required>
+                                            </div>
+                                            <small class="form-text text-muted">Minimum deposit: KES 1</small>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary w-100 py-2">
+                                            <i class="fas fa-paper-plane me-2"></i>Initiate STK Push
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Withdraw Tab -->
+                        <div id="withdraw-tab" class="user-tab-content" style="display: none;">
+                            <div class="feature-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-arrow-up text-success me-2"></i>Withdraw Funds
+                                    </h5>
+                                    <p class="text-muted">Withdraw money from your wallet to M-Pesa</p>
+                                    <form id="withdrawForm">
+                                        <div class="mb-3">
+                                            <label class="form-label">Phone Number</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                                <input type="tel" class="form-control" id="withdrawPhone" placeholder="254712345678" required>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Amount (KES)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">KES</span>
+                                                <input type="number" class="form-control" id="withdrawAmount" min="1" placeholder="Enter amount" required>
+                                            </div>
+                                            <small class="form-text text-muted">2% commission applies</small>
+                                        </div>
+                                        <div class="alert alert-info">
+                                            <small>
+                                                <strong>Note:</strong> A 2% commission will be deducted from your withdrawal amount.
+                                                You will receive the net amount after commission.
+                                            </small>
+                                        </div>
+                                        <button type="submit" class="btn btn-success w-100 py-2">
+                                            <i class="fas fa-money-bill-wave me-2"></i>Initiate Withdrawal
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Transfer Tab -->
+                        <div id="transfer-tab" class="user-tab-content" style="display: none;">
+                            <div class="feature-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-exchange-alt text-info me-2"></i>Transfer to User
+                                    </h5>
+                                    <p class="text-muted">Send money to another BeraPay user</p>
+                                    <form id="transferForm">
+                                        <div class="mb-3">
+                                            <label class="form-label">Recipient Phone Number</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                                <input type="tel" class="form-control" id="transferPhone" placeholder="254712345678" required>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Amount (KES)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">KES</span>
+                                                <input type="number" class="form-control" id="transferAmount" min="1" placeholder="Enter amount" required>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Description (Optional)</label>
+                                            <textarea class="form-control" id="transferDescription" placeholder="Add a note for the recipient" rows="2"></textarea>
+                                        </div>
+                                        <div class="alert alert-info">
+                                            <small>
+                                                <strong>Note:</strong> A 2% commission applies. The recipient will receive the net amount after commission.
+                                            </small>
+                                        </div>
+                                        <button type="submit" class="btn btn-info w-100 py-2">
+                                            <i class="fas fa-paper-plane me-2"></i>Send Transfer
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Transactions Tab -->
+                        <div id="transactions-tab" class="user-tab-content" style="display: none;">
+                            <div class="feature-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-history me-2"></i>Transaction History
+                                    </h5>
+                                    <div class="loading-spinner" id="transactionsLoading">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p class="mt-2">Loading transactions...</p>
+                                    </div>
+                                    <div id="transactionsList"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard Section -->
+    <div id="admin-dashboard-section" class="section">
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Admin Sidebar -->
+                <div class="col-md-3 admin-sidebar">
+                    <div class="text-center p-4 border-bottom">
+                        <div class="user-avatar mx-auto mb-3 bg-warning">
+                            <i class="fas fa-user-shield"></i>
+                        </div>
+                        <h6 id="adminName" class="mb-1">Admin User</h6>
+                        <small id="adminEmail" class="text-muted">admin@berapay.com</small>
+                    </div>
+                    <nav class="nav flex-column">
+                        <a class="nav-link active" href="#" onclick="showAdminTab('admin-overview')">
+                            <i class="fas fa-chart-bar me-2"></i>Dashboard
+                        </a>
+                        <a class="nav-link" href="#" onclick="showAdminTab('admin-users')">
+                            <i class="fas fa-users me-2"></i>Users
+                        </a>
+                        <a class="nav-link" href="#" onclick="showAdminTab('admin-transactions')">
+                            <i class="fas fa-list me-2"></i>Transactions
+                        </a>
+                        <a class="nav-link" href="#" onclick="showAdminTab('admin-reports')">
+                            <i class="fas fa-chart-pie me-2"></i>Reports
+                        </a>
+                        <a class="nav-link" href="#" onclick="adminLogout()">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a>
+                    </nav>
+                </div>
+
+                <!-- Admin Main Content -->
+                <div class="col-md-9 admin-content">
+                    <div class="container-fluid py-4">
+                        <!-- Admin Overview Tab -->
+                        <div id="admin-overview-tab" class="admin-tab-content">
+                            <h4 class="mb-4">Admin Dashboard</h4>
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <div class="feature-card">
+                                        <div class="card-body text-center stat-card">
+                                            <i class="fas fa-users fa-2x text-primary mb-3"></i>
+                                            <h6 class="text-muted">Total Users</h6>
+                                            <div class="stat-number" id="totalUsers">0</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="feature-card">
+                                        <div class="card-body text-center stat-card">
+                                            <i class="fas fa-exchange-alt fa-2x text-success mb-3"></i>
+                                            <h6 class="text-muted">Total Volume</h6>
+                                            <div class="stat-number" id="totalVolume">KES 0</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="feature-card">
+                                        <div class="card-body text-center stat-card">
+                                            <i class="fas fa-money-bill-wave fa-2x text-warning mb-3"></i>
+                                            <h6 class="text-muted">Total Commission</h6>
+                                            <div class="stat-number" id="totalCommission">KES 0</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="feature-card">
+                                        <div class="card-body text-center stat-card">
+                                            <i class="fas fa-wallet fa-2x text-info mb-3"></i>
+                                            <h6 class="text-muted">System Balance</h6>
+                                            <div class="stat-number" id="adminSystemBalance">KES 0</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Recent Transactions -->
+                            <div class="feature-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Recent Transactions</h5>
+                                    <div id="adminRecentTransactions"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Admin Users Tab -->
+                        <div id="admin-users-tab" class="admin-tab-content" style="display: none;">
+                            <h4 class="mb-4">User Management</h4>
+                            <div class="feature-card">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h5 class="card-title mb-0">All Users</h5>
+                                        <div class="input-group" style="width: 300px;">
+                                            <input type="text" class="form-control" id="userSearch" placeholder="Search users...">
+                                            <button class="btn btn-outline-primary" onclick="searchUsers()">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="usersList"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Admin Transactions Tab -->
+                        <div id="admin-transactions-tab" class="admin-tab-content" style="display: none;">
+                            <h4 class="mb-4">Transaction Management</h4>
+                            <div class="feature-card">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h5 class="card-title mb-0">All Transactions</h5>
+                                        <div class="btn-group">
+                                            <button class="btn btn-outline-primary" onclick="loadAdminTransactions()">
+                                                <i class="fas fa-sync-alt"></i> Refresh
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="adminTransactionsList"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Admin Reports Tab -->
+                        <div id="admin-reports-tab" class="admin-tab-content" style="display: none;">
+                            <h4 class="mb-4">Commission Reports</h4>
+                            <div class="feature-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Commission Analytics</h5>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="feature-card">
+                                                <div class="card-body text-center">
+                                                    <h6>Today's Commission</h6>
+                                                    <div class="wallet-balance text-warning" id="todayCommission">KES 0</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="feature-card">
+                                                <div class="card-body text-center">
+                                                    <h6>Monthly Commission</h6>
+                                                    <div class="wallet-balance text-success" id="monthlyCommission">KES 0</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts Container -->
+    <div id="alertsContainer" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Global state
         let currentUser = null;
         let currentAdmin = null;
 
         // Show specific section
         function showSection(section) {
             document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+            document.getElementById('hero-section').style.display = 'none';
             document.getElementById(section + '-section').style.display = 'block';
         }
 
-        // Show tab in dashboard
-        function showTab(tab) {
-            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+        // Show user tab
+        function showUserTab(tab) {
+            document.querySelectorAll('.user-tab-content').forEach(t => t.style.display = 'none');
             document.getElementById(tab + '-tab').style.display = 'block';
-            document.querySelectorAll('.list-group-item').forEach(i => i.classList.remove('active'));
+            
+            // Update active nav link
+            document.querySelectorAll('.admin-sidebar .nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
             event.target.classList.add('active');
+
+            // Load data for specific tabs
+            if (tab === 'transactions') {
+                loadTransactions();
+            } else if (tab === 'overview') {
+                loadBalance();
+            }
         }
 
         // Show admin tab
         function showAdminTab(tab) {
             document.querySelectorAll('.admin-tab-content').forEach(t => t.style.display = 'none');
             document.getElementById(tab + '-tab').style.display = 'block';
-            document.querySelectorAll('.list-group-item').forEach(i => i.classList.remove('active'));
+            
+            // Update active nav link
+            document.querySelectorAll('.admin-sidebar .nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
             event.target.classList.add('active');
+
+            // Load data for specific tabs
+            if (tab === 'admin-overview') {
+                loadAdminStats();
+            } else if (tab === 'admin-users') {
+                loadAdminUsers();
+            } else if (tab === 'admin-transactions') {
+                loadAdminTransactions();
+            } else if (tab === 'admin-reports') {
+                loadAdminReports();
+            }
         }
 
         // Show alert
         function showAlert(message, type = 'info') {
             const alertDiv = document.createElement('div');
             alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-            alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-            document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
-            setTimeout(() => alertDiv.remove(), 5000);
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.getElementById('alertsContainer').appendChild(alertDiv);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
         }
 
         // API call helper
@@ -443,8 +824,8 @@
                     body: formData
                 });
                 currentUser = data;
-                showDashboard();
-                showAlert('Registration successful!', 'success');
+                showUserDashboard();
+                showAlert('Registration successful! Welcome to BeraPay.', 'success');
             } catch (error) {}
         });
 
@@ -462,8 +843,8 @@
                     body: formData
                 });
                 currentUser = data;
-                showDashboard();
-                showAlert('Login successful!', 'success');
+                showUserDashboard();
+                showAlert('Login successful! Welcome back.', 'success');
             } catch (error) {}
         });
 
@@ -499,7 +880,7 @@
                     method: 'POST',
                     body: formData
                 });
-                showAlert('Deposit initiated! Check your phone.', 'success');
+                showAlert('STK Push initiated! Check your phone to complete the deposit.', 'success');
                 document.getElementById('depositForm').reset();
                 loadBalance();
             } catch (error) {}
@@ -518,7 +899,7 @@
                     method: 'POST',
                     body: formData
                 });
-                showAlert(`Withdrawal initiated! Commission: KES ${data.commission}`, 'success');
+                showAlert(`Withdrawal initiated! Commission: KES ${data.commission}, Net Amount: KES ${data.netAmount}`, 'success');
                 document.getElementById('withdrawForm').reset();
                 loadBalance();
             } catch (error) {}
@@ -557,51 +938,86 @@
         // Load transactions
         async function loadTransactions() {
             try {
+                document.getElementById('transactionsLoading').style.display = 'block';
+                document.getElementById('transactionsList').innerHTML = '';
+                
                 const data = await apiCall('/api/users/transactions');
                 const container = document.getElementById('transactionsList');
                 
-                if (!data.transactions.length) {
-                    container.innerHTML = '<p class="text-muted">No transactions</p>';
+                if (!data.transactions || data.transactions.length === 0) {
+                    container.innerHTML = '<p class="text-muted text-center py-4">No transactions found.</p>';
                     return;
                 }
 
                 let html = '';
                 data.transactions.forEach(tx => {
-                    const typeClass = tx.amount < 0 ? 'withdrawal' : '';
+                    const typeClass = tx.amount < 0 ? 'withdrawal' : tx.type === 'transfer' ? 'transfer' : '';
                     const amountClass = tx.amount < 0 ? 'text-danger' : 'text-success';
-                    const icon = tx.amount < 0 ? 'arrow-up' : 'arrow-down';
+                    const icon = tx.amount < 0 ? 'arrow-up' : tx.type === 'transfer' ? 'exchange-alt' : 'arrow-down';
+                    const sign = tx.amount < 0 ? '-' : '+';
                     
                     html += `
                         <div class="transaction-item ${typeClass}">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <i class="fas fa-${icon}"></i>
-                                    <strong>${tx.type}</strong>
-                                    ${tx.description ? `<br><small>${tx.description}</small>` : ''}
-                                    <br><small class="text-muted">${new Date(tx.createdAt).toLocaleString()}</small>
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <i class="fas fa-${icon} me-2 text-${amountClass.replace('text-', '')}"></i>
+                                        <strong class="text-capitalize">${tx.type}</strong>
+                                        <span class="badge bg-${tx.status === 'successful' ? 'success' : tx.status === 'pending' ? 'warning' : 'danger'} ms-2">
+                                            ${tx.status}
+                                        </span>
+                                    </div>
+                                    ${tx.description ? `<p class="mb-1 small">${tx.description}</p>` : ''}
+                                    ${tx.recipient_phone ? `<small class="text-muted">To: ${tx.recipient_phone}</small><br>` : ''}
+                                    <small class="text-muted">${new Date(tx.createdAt).toLocaleString()}</small>
+                                    ${tx.commission > 0 ? `<br><small class="text-warning">Commission: KES ${tx.commission.toFixed(2)}</small>` : ''}
                                 </div>
                                 <div class="text-end">
-                                    <div class="${amountClass}">KES ${Math.abs(tx.amount).toFixed(2)}</div>
-                                    <span class="badge bg-${tx.status === 'successful' ? 'success' : 'warning'}">${tx.status}</span>
-                                    ${tx.commission > 0 ? `<br><small class="text-muted">Fee: KES ${tx.commission.toFixed(2)}</small>` : ''}
+                                    <div class="${amountClass} fw-bold">${sign} KES ${Math.abs(tx.amount).toFixed(2)}</div>
+                                    ${tx.payhero_txn_id ? `<small class="text-muted">Ref: ${tx.external_reference}</small>` : ''}
                                 </div>
                             </div>
                         </div>
                     `;
                 });
                 container.innerHTML = html;
-            } catch (error) {}
+            } catch (error) {
+                console.error('Error loading transactions:', error);
+            } finally {
+                document.getElementById('transactionsLoading').style.display = 'none';
+            }
         }
 
         // Load admin stats
         async function loadAdminStats() {
             try {
                 const data = await apiCall('/api/admin/stats');
-                document.getElementById('totalUsers').textContent = data.totalUsers;
-                document.getElementById('totalVolume').textContent = `KES ${data.totalVolume.toFixed(2)}`;
-                document.getElementById('totalCommission').textContent = `KES ${data.totalCommission.toFixed(2)}`;
-                document.getElementById('adminSystemBalance').textContent = `KES ${data.systemBalance.toFixed(2)}`;
-            } catch (error) {}
+                document.getElementById('totalUsers').textContent = data.users.total;
+                document.getElementById('totalVolume').textContent = `KES ${data.transactions.volume.toFixed(2)}`;
+                document.getElementById('totalCommission').textContent = `KES ${data.transactions.commission.toFixed(2)}`;
+                document.getElementById('adminSystemBalance').textContent = `KES ${data.system.balance.toFixed(2)}`;
+
+                // Recent transactions
+                const recentContainer = document.getElementById('adminRecentTransactions');
+                if (data.recentTransactions && data.recentTransactions.length > 0) {
+                    let html = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>User</th><th>Type</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead><tbody>';
+                    data.recentTransactions.forEach(tx => {
+                        html += `<tr>
+                            <td>${tx.user_id?.name || 'N/A'}</td>
+                            <td><span class="badge bg-primary">${tx.type}</span></td>
+                            <td>KES ${Math.abs(tx.amount).toFixed(2)}</td>
+                            <td><span class="badge bg-${tx.status === 'successful' ? 'success' : 'warning'}">${tx.status}</span></td>
+                            <td>${new Date(tx.createdAt).toLocaleDateString()}</td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table></div>';
+                    recentContainer.innerHTML = html;
+                } else {
+                    recentContainer.innerHTML = '<p class="text-muted">No recent transactions</p>';
+                }
+            } catch (error) {
+                console.error('Error loading admin stats:', error);
+            }
         }
 
         // Load admin users
@@ -610,19 +1026,22 @@
                 const data = await apiCall('/api/admin/users');
                 const container = document.getElementById('usersList');
                 
-                let html = '<div class="table-responsive"><table class="table table-striped"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Balance</th><th>Joined</th></tr></thead><tbody>';
+                let html = '<div class="table-responsive"><table class="table table-striped"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Balance</th><th>Status</th><th>Joined</th></tr></thead><tbody>';
                 data.users.forEach(user => {
                     html += `<tr>
                         <td>${user.name}</td>
                         <td>${user.email}</td>
                         <td>${user.phone}</td>
                         <td>KES ${user.wallet_balance.toFixed(2)}</td>
+                        <td><span class="badge bg-${user.is_active ? 'success' : 'danger'}">${user.is_active ? 'Active' : 'Inactive'}</span></td>
                         <td>${new Date(user.createdAt).toLocaleDateString()}</td>
                     </tr>`;
                 });
                 html += '</tbody></table></div>';
                 container.innerHTML = html;
-            } catch (error) {}
+            } catch (error) {
+                console.error('Error loading admin users:', error);
+            }
         }
 
         // Load admin transactions
@@ -631,41 +1050,91 @@
                 const data = await apiCall('/api/admin/transactions');
                 const container = document.getElementById('adminTransactionsList');
                 
-                let html = `<p>Total Commission: <strong>KES ${data.totalCommission.toFixed(2)}</strong></p>
-                <div class="table-responsive"><table class="table table-striped"><thead><tr><th>User</th><th>Type</th><th>Amount</th><th>Fee</th><th>Status</th><th>Date</th></tr></thead><tbody>`;
+                let html = `
+                    <div class="mb-3">
+                        <strong>Total Commission: </strong>KES ${data.totalCommission.toFixed(2)} | 
+                        <strong>Total Volume: </strong>KES ${data.totalVolume.toFixed(2)}
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Commission</th>
+                                    <th>Status</th>
+                                    <th>Reference</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
                 
                 data.transactions.forEach(tx => {
                     html += `<tr>
-                        <td>${tx.user_id?.name || 'N/A'}</td>
-                        <td>${tx.type}</td>
+                        <td>${tx.user_id?.name || 'N/A'}<br><small class="text-muted">${tx.user_id?.phone || ''}</small></td>
+                        <td><span class="badge bg-${tx.type === 'deposit' ? 'primary' : tx.type === 'withdrawal' ? 'success' : 'info'}">${tx.type}</span></td>
                         <td>KES ${Math.abs(tx.amount).toFixed(2)}</td>
                         <td>KES ${tx.commission.toFixed(2)}</td>
-                        <td><span class="badge bg-${tx.status === 'successful' ? 'success' : 'warning'}">${tx.status}</span></td>
+                        <td><span class="badge bg-${tx.status === 'successful' ? 'success' : tx.status === 'pending' ? 'warning' : 'danger'}">${tx.status}</span></td>
+                        <td><small>${tx.external_reference}</small></td>
                         <td>${new Date(tx.createdAt).toLocaleString()}</td>
                     </tr>`;
                 });
                 html += '</tbody></table></div>';
                 container.innerHTML = html;
-            } catch (error) {}
+            } catch (error) {
+                console.error('Error loading admin transactions:', error);
+            }
+        }
+
+        // Load admin reports
+        async function loadAdminReports() {
+            try {
+                // Simple commission calculation for demo
+                const stats = await apiCall('/api/admin/stats');
+                document.getElementById('todayCommission').textContent = `KES ${(stats.transactions.commission * 0.1).toFixed(2)}`;
+                document.getElementById('monthlyCommission').textContent = `KES ${stats.transactions.commission.toFixed(2)}`;
+            } catch (error) {
+                console.error('Error loading admin reports:', error);
+            }
+        }
+
+        // Search users
+        async function searchUsers() {
+            const searchTerm = document.getElementById('userSearch').value;
+            // Implementation for user search
+            showAlert('Search functionality coming soon!', 'info');
         }
 
         // Show user dashboard
-        function showDashboard() {
+        function showUserDashboard() {
             showSection('dashboard');
-            showTab('overview');
+            showUserTab('overview');
+            
+            // Update user info
+            document.getElementById('userName').textContent = currentUser.user.name;
+            document.getElementById('userEmail').textContent = currentUser.user.email;
+            document.getElementById('userInitials').textContent = currentUser.user.name.charAt(0).toUpperCase();
+            
+            // Pre-fill phone numbers
             document.getElementById('depositPhone').value = currentUser.user.phone;
             document.getElementById('withdrawPhone').value = currentUser.user.phone;
+            
             loadBalance();
-            loadTransactions();
         }
 
         // Show admin dashboard
         function showAdminDashboard() {
             showSection('admin-dashboard');
             showAdminTab('admin-overview');
+            
+            // Update admin info
+            document.getElementById('adminName').textContent = currentAdmin.admin.name;
+            document.getElementById('adminEmail').textContent = currentAdmin.admin.email;
+            
             loadAdminStats();
-            loadAdminUsers();
-            loadAdminTransactions();
         }
 
         // Logout
@@ -678,12 +1147,13 @@
         function adminLogout() {
             currentAdmin = null;
             showSection('admin-login');
-            showAlert('Admin logged out', 'info');
+            showAlert('Admin logged out successfully', 'info');
         }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            showSection('login');
+            // Show hero section by default
+            document.getElementById('hero-section').style.display = 'block';
         });
     </script>
 </body>
